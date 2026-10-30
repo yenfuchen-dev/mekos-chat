@@ -272,19 +272,47 @@
     .phase p.d{font-size:13.5px;color:var(--muted);margin:4px 0 14px}
     .sgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
     @media (max-width:760px){.sgrid{grid-template-columns:1fr}}
-    .scard{text-align:left;padding:14px;border:1px solid var(--line);border-radius:var(--radius-lg);
-      background:var(--card);transition:border-color .16s}
-    .scard:hover{border-color:var(--line-2)}
-    .scard .t{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    /* ---- skill card ----
+       Four things, and they are four different KINDS of thing, so they get
+       four treatments rather than one grey block:
+         title        what it's called
+         description  what it does, in a sentence
+         contract     what goes in, what comes out — the structural fact,
+                      and the one people actually compare between skills
+         connectors   what it touches
+       The contract used to be prose in the footer ("Gives you Question map
+       · needs an RFP") at 11.5px, which is a sentence you parse rather than
+       a shape you scan. As a flow it reads at a glance and lines up down
+       the column. */
+    .scard{display:flex;flex-direction:column;width:100%;text-align:left;padding:15px;
+      border:1px solid var(--line);border-radius:var(--radius-lg);
+      background:var(--card);transition:border-color .16s,transform .16s var(--ease)}
+    .scard:hover{border-color:var(--accent);transform:translateY(-1px)}
+    .scard .t{display:flex;align-items:center;gap:10px;margin-bottom:9px}
     .scard .g{width:28px;height:28px;border-radius:var(--radius);flex:none;display:grid;
       place-items:center;background:var(--accent-soft);color:var(--accent)}
     .scard .g svg{width:15px;height:15px}
     .scard.watch .g{background:var(--accent-2-soft);color:var(--accent-2)}
-    .scard .t b{font-size:14px;font-weight:600;flex:1}
-    .scard > p{font-size:13px;line-height:1.5;color:var(--muted)}
-    .scard .meta{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);
-      font-size:11.5px;color:var(--faint);line-height:1.6}
-    .scard .meta b{color:var(--muted);font-weight:500}
+    .scard .t b{font-size:14.5px;font-weight:600;flex:1}
+    .scard > p{font-size:13px;line-height:1.5;color:var(--muted);margin-bottom:13px}
+
+    /* the contract — detail panel only; the card just teases */
+    .flow{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+      padding:9px 11px;border-radius:var(--radius);background:var(--card-2)}
+    .flow .in{font-size:12.5px;color:var(--muted)}
+    .flow .ar{width:13px;height:13px;flex:none;color:var(--accent)}
+    .flow .out{font-size:13px;font-weight:600;color:var(--fg)}
+    .scard.watch .flow .ar{color:var(--accent-2)}
+
+    /* connectors as objects, not prose — the page can be swept for
+       "what uses Higgsfield". Dots match the Connectors page: cyan is
+       always on, magenta wakes when the skill runs. */
+    .uses{display:flex;flex-wrap:wrap;gap:4px;margin-top:9px}
+    .scard .uses{margin-top:auto;padding-top:12px}
+    .ucx{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;
+      border:1px solid var(--line);font-size:11.5px;color:var(--muted)}
+    .ucx::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--accent-2);flex:none}
+    .ucx.always::before{background:var(--accent)}
     /* a skill added in this session announces itself once, then settles */
     .scard.fresh{border-color:var(--accent);animation:land 2.4s var(--ease)}
     @keyframes land{0%{background:var(--accent-soft)}100%{background:var(--card)}}
@@ -331,6 +359,23 @@
     .drafted{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
     .drafted .dh{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--accent);margin-bottom:12px}
     .drafted .dh i{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;font-style:normal}
+
+    /* ---- skill detail ----
+       Everything the card compresses, said properly. Built from the same
+       fields, so there is no second copy of the truth to go stale. */
+    .si-top{display:flex;align-items:center;gap:12px;padding:20px 20px 0}
+    .si-top .g{width:38px;height:38px;border-radius:var(--radius-lg);flex:none;display:grid;
+      place-items:center;background:var(--accent-soft);color:var(--accent)}
+    .si-top .g svg{width:20px;height:20px}
+    .si-top.watch .g{background:var(--accent-2-soft);color:var(--accent-2)}
+    .si-top h2{font-size:20px;font-weight:600;letter-spacing:-.015em}
+    .si-top .sub{font-size:12.5px;color:var(--faint);margin-top:2px}
+    .si-lead{font-size:15px;line-height:1.6;margin-bottom:20px}
+    .si-sec{margin-bottom:20px}
+    .si-sec h3{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+      color:var(--faint);font-weight:500;margin-bottom:9px}
+    .si-sec p{font-size:13.5px;line-height:1.6;color:var(--muted);margin-top:9px}
+    .si-sec p b{color:var(--fg);font-weight:600}
 
     .sheet-foot{display:flex;align-items:center;gap:9px;padding:14px 20px;border-top:1px solid var(--line);
       background:var(--card-2);flex-wrap:wrap}
@@ -1136,6 +1181,20 @@
   </main>
 </div>
 
+<!-- ===================== SKILL DETAIL ===================== -->
+<div class="sheet" id="skinfo" hidden role="dialog" aria-modal="true" aria-label="Skill">
+  <div class="sheet-bg" data-close-si></div>
+  <div class="sheet-box">
+    <div class="si-top" id="si-top"></div>
+    <div class="sheet-body" id="si-body"></div>
+    <div class="sheet-foot">
+      <span class="n" id="si-note"></span>
+      <button class="btn" data-close-si>Close</button>
+      <button class="btn pri" id="si-use">Use in a chat</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== NEW SKILL ===================== -->
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-label="New skill">
   <div class="sheet-bg" data-close></div>
@@ -1393,17 +1452,17 @@
       if(!inPh.length) return '';
       return '<div class="phase"><h2>'+ph.n+'</h2><p class="d">'+ph.d+'</p><div class="sgrid">'+
         inPh.map(function(s){
-          return '<div class="scard'+(s.mode==='watch'?' watch':'')+'" data-k="'+s.k+'">'+
+          var w = s.mode==='watch';
+          return '<button class="scard'+(w?' watch':'')+'" data-skill="'+s.k+'">'+
             '<div class="t"><span class="g"><svg><use href="#'+s.g+'"></use></svg></span><b>'+s.n+'</b></div>'+
             '<p>'+s.d+'.</p>'+
-            '<div class="meta">'+
-              (s.mode==='watch'
-                ? '<b>Always on</b> — switch it on once and it keeps running.<br>'
-                : '<b>Gives you</b> '+s.gives+(s.needs.length?' &middot; <b>needs</b> '+s.needs.join(' + '):' &middot; runs on anything')+'<br>')+
-              '<b>Uses</b> '+s.uses+
-            '</div>'+
+            '<div class="uses">'+(s.uses||'').split(',').map(function(c){
+              c=c.trim(); if(!c) return '';
+              return '<span class="ucx'+(ALWAYS[c]?' always':'')+'">'+c+'</span>';
+            }).join('')+'</div>'+
+            (s.added?'<div class="addedby">Added by the team — not on the original list</div>':'')+
             (s.mine?'<span class="mine">Added by you &middot; just now</span>':'')+
-          '</div>';
+          '</button>';
         }).join('')+'</div></div>';
     }).join('');
   }
@@ -1714,6 +1773,77 @@
     document.getElementById('skcount').textContent=CATALOG.length;
     document.getElementById('sidect').textContent=CATALOG.length;
   }
+
+
+  /* ---------- skill detail ----------
+     Composed from the same fields the card uses, written out as sentences.
+     No second copy of the truth, so nothing here can contradict the card,
+     the menu or the Connectors page. */
+  var siKey=null, siSheet=document.getElementById('skinfo');
+  function openSkill(k){
+    var s=BY[k]; if(!s) return;
+    siKey=k;
+    var w=s.mode==='watch';
+    var ph=(PHASES.filter(function(x){return x.id===s.p;})[0]||{}).n||'';
+    var inp = w ? 'always on' : (s.needs.length ? s.needs.join(' + ') : 'anything');
+
+    document.getElementById('si-top').className='si-top'+(w?' watch':'');
+    document.getElementById('si-top').innerHTML=
+      '<span class="g"><svg><use href="#'+s.g+'"></use></svg></span>'+
+      '<span><h2>'+s.n+'</h2><div class="sub">'+(s.who||'')+' &middot; '+ph+'</div></span>'+
+      '<button class="ico" data-close-si aria-label="Close" style="margin-left:auto"><svg><use href="#i-x"></use></svg></button>';
+
+    var conn=(s.uses||'').split(',').map(function(c){return c.trim();}).filter(Boolean);
+    var on=conn.filter(function(c){return ALWAYS[c];});
+    var wake=conn.filter(function(c){return !ALWAYS[c];});
+
+    var contract = w
+      ? 'Writes into <b>'+s.gives+'</b> continuously, rather than handing you something when you ask. Switch it off from the chat menu.'
+      : (s.needs.length
+          ? 'Until <b>'+s.needs.join(' and ')+'</b> exists in a project, it shows greyed in the chat menu with the input it is waiting for.'
+          : 'Never waits for an input, so it is always available \u2014 it reads whatever the project already holds.');
+
+    var connNote = !conn.length ? 'Nothing beyond the model itself.'
+      : (wake.length
+          ? '<b>'+wake.join(', ')+'</b> '+(wake.length>1?'wake':'wakes')+' when this runs, and '+(wake.length>1?'go':'goes')+' quiet again afterwards. Nothing is called on your behalf until you ask for it.'
+          : 'Everything it needs is already running.')
+        + (on.length ? ' <b>'+on.join(' and ')+'</b> '+(on.length>1?'are':'is')+' always on.' : '')
+        + ' Whatever it produces goes to the Library, so the next skill can read it.';
+
+    document.getElementById('si-body').innerHTML=
+      '<p class="si-lead">'+s.d+'.</p>'+
+      '<div class="si-sec"><h3>What it takes, what it gives</h3>'+
+        '<div class="flow"><span class="in">'+inp+'</span>'+
+        '<svg class="ar"><use href="#i-right"></use></svg>'+
+        '<span class="out">'+s.gives+'</span></div>'+
+        '<p>'+contract+'</p></div>'+
+      '<div class="si-sec"><h3>Connectors</h3>'+
+        '<div class="uses">'+conn.map(function(c){
+          return '<span class="ucx'+(ALWAYS[c]?' always':'')+'">'+c+'</span>';
+        }).join('')+'</div><p>'+connNote+'</p></div>'+
+      '';
+
+    document.getElementById('si-note').textContent =
+      w ? 'Always-on agents are switched on from the chat menu.' : 'Adds it to the chat box — it runs when you send.';
+    document.getElementById('si-use').style.display = w ? 'none' : '';
+    siSheet.hidden=false;
+  }
+  function closeSkill(){ siSheet.hidden=true; siKey=null; }
+
+  document.addEventListener('click',function(e){
+    if(e.target.closest('[data-close-si]')){ closeSkill(); return; }
+    var card=e.target.closest('[data-skill]');
+    if(card){ e.stopPropagation(); openSkill(card.getAttribute('data-skill')); }
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&!siSheet.hidden) closeSkill();
+  });
+  /* the point of reading about a skill is usually to then use it */
+  document.getElementById('si-use').addEventListener('click',function(){
+    if(siKey && armed.indexOf(siKey)<0){ armed.push(siKey); drawArmed(); drawMenu(); }
+    closeSkill();
+    document.querySelector('.ta').focus();
+  });
 
   document.getElementById('theme').addEventListener('click',function(){
     var r=document.documentElement, next=r.getAttribute('data-theme')==='dark'?'light':'dark';

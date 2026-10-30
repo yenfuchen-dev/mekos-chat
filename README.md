@@ -59,7 +59,9 @@ Two consequences the layout has to carry:
    because it couldn't source them.
 
 5. **Skills** (bottom left). All 27, grouped the way the team talks about the
-   work. The groups are labels, not steps.
+   work. The groups are labels, not steps. Each card is name, what it does,
+   and what it plugs into — **click one** for the rest: what it takes, what
+   it gives back, and what wakes up when it runs.
 
 6. **+ New skill → Draft it → Add to workspace.** Describe a skill in a
    sentence and MekOS drafts the definition. Add it, then open the chat box

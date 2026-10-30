@@ -1,0 +1,2386 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MekOS — Projects, version B (skills &amp; actions)</title>
+  <script>(function(){try{var t=localStorage.getItem('mekos-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ===========================================================
+       MOCK ONLY — version B of the Projects experience.
+
+       The difference from version A is one idea: the five stages stop
+       being a sequence you walk and become SKILLS you invoke. There is
+       no stage 2 of 5, no locked stage 3, no sign-off gate. A project
+       is a conversation plus whatever the skills produced, in whatever
+       order the work actually needed them.
+
+       Two consequences the layout has to carry:
+       1. The composer becomes the control surface — skills are picked
+          from a menu in the input, not from a stepper in the nav.
+       2. Every skill activation lights up its own connectors, so the
+          UI has to show what just got plugged in. Claude and Waldo are
+          always on; Sprout, Higgsfield and the rest arrive with a skill.
+
+       Content is hard-coded Amtrak work written off CTX_PROFILE.amtrak
+       in directory.js. Tokens are lifted verbatim from project.html.
+       =========================================================== */
+    :root{
+      --bg:#f7f4ec; --fg:#17150f; --muted:#6b6656; --faint:#9a9483;
+      --line:rgba(23,21,15,.12); --line-2:rgba(23,21,15,.20);
+      --card:#fffdf7; --card-2:#efeade;
+      --accent:#0b9ca2; --accent-fg:#ffffff; --accent-2:#c6167f;
+      --accent-soft:rgba(11,156,162,.12); --accent-2-soft:rgba(198,22,127,.12);
+      --rail:#f1ece1;
+      --shadow-sm:0 12px 30px -18px rgba(23,21,15,.26);
+      --shadow-lg:0 26px 60px -26px rgba(23,21,15,.42);
+      --ease:cubic-bezier(.22,1,.36,1);
+      --radius:3px; --radius-lg:5px;
+      --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+    [data-theme="dark"]{
+      --bg:#262D2D; --fg:#eef2f1; --muted:#98a4a4; --faint:#606b6b;
+      --line:rgba(230,240,240,.12); --line-2:rgba(230,240,240,.22);
+      --card:#141e20; --card-2:#1b2629;
+      --accent:#2ee0e6; --accent-fg:#06181a; --accent-2:#ec1a86;
+      --accent-soft:rgba(46,224,230,.14); --accent-2-soft:rgba(236,26,134,.16);
+      --rail:#1e2626;
+      --shadow-sm:0 12px 30px -18px rgba(0,0,0,.75);
+      --shadow-lg:0 26px 60px -26px rgba(0,0,0,.85);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{height:100dvh;overflow:hidden;background:var(--bg);color:var(--fg);
+      font-family:var(--font);font-size:15px;-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    button{font-family:inherit;color:inherit;cursor:pointer;background:transparent;border:none}
+    :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    ::-webkit-scrollbar{width:9px;height:9px}
+    ::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px}
+
+    .app{display:grid;grid-template-columns:288px 1fr;height:100dvh}
+
+    /* ================= SIDEBAR ================= */
+    .side{background:var(--rail);border-right:1px solid var(--line);
+      display:flex;flex-direction:column;min-height:0}
+    .side-mode{display:none;flex:1;flex-direction:column;min-height:0}
+    body.state-home .side-home{display:flex}
+    /* a client-level chat is still the client's sidebar — it isn't a project */
+    body.state-overview .side-client,
+    body.state-skills .side-client,
+    body.state-signals .side-client,
+    body.state-chat .side-client{display:flex}
+    body.state-rfi .side-rfi{display:flex}
+    body.state-brief .side-brief{display:flex}
+
+    .side-top{padding:16px 14px 10px;display:grid;gap:10px}
+    .logo-svg{display:block;width:auto;height:24px;color:var(--fg)}
+    .side-scroll{flex:1;overflow-y:auto;padding:0 8px 14px;min-height:0}
+
+    /* home: a flat list of clients — the only thing at this level */
+    .cli-row{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;border-radius:var(--radius-lg);
+      font-size:13.5px;font-weight:500;text-align:left;transition:background .15s}
+    .cli-row:hover{background:var(--card-2)}
+    .cli-row img{width:20px;height:20px;border-radius:50%;object-fit:contain;background:#fff;
+      border:1px solid var(--line);flex:none}
+    .cli-row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+    .cli-row .ct{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--faint)}
+
+    .back{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--accent-2);
+      padding:2px 0;align-self:start}
+    .back svg{width:12px;height:12px;transition:transform .2s var(--ease)}
+    .back:hover svg{transform:translateX(-2px)}
+    .ws-head{display:flex;align-items:center;gap:9px;min-width:0}
+    .ws-head img{width:26px;height:26px;border-radius:50%;object-fit:contain;background:#fff;
+      border:1px solid var(--line);flex:none}
+    .ws-head b{font-size:16px;font-weight:600;letter-spacing:-.01em;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    .snew{display:flex;align-items:center;gap:9px;width:100%;padding:9px 12px;border-radius:var(--radius-lg);
+      background:var(--accent);color:var(--accent-fg);font-size:14px;font-weight:600;
+      transition:filter .18s var(--ease)}
+    .snew:hover{filter:brightness(1.07)}
+    .snew svg{width:15px;height:15px;flex:none}
+
+    .srow{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border-radius:var(--radius-lg);
+      font-size:14px;color:var(--fg);text-align:left;transition:background .15s}
+    .srow:hover{background:var(--card-2)}
+    .srow svg{width:15px;height:15px;flex:none;opacity:.7}
+
+    .sgroup{margin-top:18px}
+    .slabel{display:flex;align-items:center;gap:6px;padding:0 10px 6px;
+      font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+
+    .sub{position:relative;display:flex;align-items:center;gap:8px;width:100%;padding:5px 9px;
+      border-radius:var(--radius-lg);font-size:13px;color:var(--muted);text-align:left;
+      transition:background .15s,color .15s}
+    .sub:hover{background:var(--card-2);color:var(--fg)}
+    .sub.on{background:var(--accent-soft);color:var(--fg);font-weight:600}
+    .sub.on::before{content:'';position:absolute;left:-11px;top:50%;transform:translateY(-50%);
+      width:2px;height:15px;border-radius:2px;background:var(--accent)}
+    .sub.on svg{opacity:1;color:var(--accent)}
+    .sub.on .ct{color:var(--accent)}
+    .sub svg{width:13px;height:13px;flex:none;opacity:.65}
+    .sub .ct{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--faint)}
+    .sub .new{margin-left:auto;font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--accent-2);background:var(--accent-2-soft);border-radius:999px;padding:1px 6px}
+
+    .sub-lbl{display:flex;align-items:center;gap:6px;padding:11px 9px 4px;
+      font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+    .sub-lbl .ct{margin-left:auto;letter-spacing:0}
+
+    .chat{display:flex;align-items:center;gap:8px;width:100%;padding:5px 9px;border-radius:var(--radius-lg);
+      font-size:12.5px;color:var(--muted);text-align:left;transition:background .15s,color .15s}
+    .chat:hover{background:var(--card-2);color:var(--fg)}
+    .chat.on{background:var(--accent-soft);color:var(--fg);font-weight:500}
+    .chat .dot{width:5px;height:5px;border-radius:50%;flex:none;background:var(--faint)}
+    .chat.on .dot{background:var(--accent)}
+    .chat .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .more{display:block;width:100%;text-align:left;padding:4px 9px 2px;font-size:11.5px;color:var(--accent)}
+
+    /* ---- project cards ----
+       In B there is no stage count to show, so the card reports what the
+       project has actually run: the skills, and the last one to fire. */
+    .pcard{display:block;width:100%;text-align:left;padding:10px 12px;margin-bottom:6px;
+      border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--card);
+      transition:border-color .16s,background .16s,transform .16s var(--ease)}
+    .pcard:hover{border-color:var(--line-2);transform:translateY(-1px)}
+    .pcard.on{border-color:var(--accent);background:var(--accent-soft)}
+    .pc-n{display:block;font-size:13.5px;font-weight:600;color:var(--fg);margin-bottom:7px;
+      line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pc-b{display:flex;align-items:center;gap:8px}
+    /* the skills this project has run, as glyph tiles — filled if used */
+    .pc-sk{display:flex;gap:3px;flex:none}
+    .pc-sk i{width:15px;height:15px;border-radius:var(--radius);display:grid;place-items:center;
+      border:1px solid var(--line-2);color:var(--faint);background:transparent}
+    .pc-sk i svg{width:9px;height:9px}
+    .pc-sk i.u{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+    .pc-s{font-family:var(--mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;
+      color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pcard.on .pc-s{color:var(--accent)}
+
+    /* ---- project focus mode ---- */
+    .pj-head{padding:4px 2px 0}
+    .pj-head .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--faint);margin-bottom:4px}
+    .pj-head h2{font-size:17px;font-weight:600;letter-spacing:-.015em;line-height:1.15}
+    .pj-head .st{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--accent);margin-top:6px;display:block}
+
+    /* skills that have run in this project. Not a ladder — a log. */
+    .sk-l{display:grid;gap:2px;margin-top:2px}
+    .skr{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:7px 9px;
+      border-radius:var(--radius-lg);font-size:13px;color:var(--muted);transition:background .15s,color .15s}
+    .skr:hover{background:var(--card-2);color:var(--fg)}
+    .skr .g{width:20px;height:20px;border-radius:var(--radius);flex:none;display:grid;place-items:center;
+      border:1px solid var(--line-2);color:var(--faint)}
+    .skr .g svg{width:11px;height:11px}
+    .skr.ran{color:var(--fg)}
+    .skr.ran .g{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+    .skr .ct{margin-left:auto;font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+      text-transform:uppercase;color:var(--faint)}
+    .skr.ran .ct{color:var(--accent)}
+    .skr.add{color:var(--accent)}
+    .skr.add .g{border-style:dashed;color:var(--accent);border-color:var(--accent)}
+    /* a running agent: magenta, with a pulse, so it never reads as a thing
+       you finished */
+    .runs-l{display:grid;gap:2px;margin-top:2px}
+    .skr.live .g{background:var(--accent-2);border-color:var(--accent-2);color:#fff}
+    .skr.live .ct{color:var(--accent-2)}
+    .skr.live .ct::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;
+      background:var(--accent-2);margin-right:5px;vertical-align:middle;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+    .skr.live-off{opacity:.6}
+
+    /* files dropped onto the project */
+    .fl{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:5px 9px;
+      border-radius:var(--radius-lg);font-size:12.5px;color:var(--muted);transition:background .15s,color .15s}
+    .fl:hover{background:var(--card-2);color:var(--fg)}
+    .fl svg{width:12px;height:12px;flex:none;opacity:.7}
+    .fl .ct{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--faint)}
+
+    .feeds{margin-top:4px;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius-lg);
+      background:var(--card)}
+    .feed-r{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:4px 0;
+      font-size:12.5px;color:var(--muted);transition:color .15s}
+    .feed-r:hover{color:var(--fg)}
+    .feed-r svg{width:12px;height:12px;flex:none;opacity:.7}
+    .feed-r .ct{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+
+    /* ---- the always-on rail ----
+       Claude and Waldo are wired at the account level, so they belong in
+       the chrome, not inside a skill. Everything else arrives with one. */
+    .wired{border-top:1px solid var(--line);padding:9px 12px}
+    .wired .wl{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--faint);margin-bottom:6px}
+    .wired .ws{display:flex;flex-wrap:wrap;gap:4px}
+
+    .conn{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border-radius:999px;
+      border:1px solid var(--line);font-family:var(--mono);font-size:9px;letter-spacing:.05em;
+      color:var(--muted);white-space:nowrap}
+    .conn::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--faint);flex:none}
+    .conn.on::before{background:var(--accent)}
+    .conn.on{color:var(--fg);border-color:var(--line-2)}
+    /* magenta = switched on by a skill, not by the account */
+    .conn.lit::before{background:var(--accent-2)}
+    .conn.lit{color:var(--fg);border-color:var(--accent-2);background:var(--accent-2-soft)}
+
+    .side-foot{border-top:1px solid var(--line);padding:10px 12px;display:flex;align-items:center;gap:10px}
+    .av{width:27px;height:27px;border-radius:50%;flex:none;display:grid;place-items:center;
+      background:var(--accent-2);color:#fff;font-size:10.5px;font-weight:700}
+    .who{min-width:0;line-height:1.25}
+    .who b{display:block;font-size:13px;font-weight:600}
+    .who span{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+
+    /* ================= MAIN ================= */
+    .main{display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+
+    .mockbar{position:absolute;top:12px;right:16px;z-index:6;display:flex;align-items:center;gap:8px;
+      padding:5px 7px 5px 12px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+    .mocklab{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+    .mocklab b{color:var(--accent-2);font-weight:500}
+    .seg{display:flex;gap:1px;padding:2px;border:1px solid var(--line);border-radius:999px;background:var(--card)}
+    .seg button{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--faint);padding:5px 11px;border-radius:999px;transition:background .16s,color .16s}
+    .seg button.on{background:var(--accent);color:var(--accent-fg)}
+    .ico-btn{width:30px;height:30px;border-radius:999px;border:1px solid var(--line);background:var(--card);
+      display:grid;place-items:center;color:var(--muted)}
+    .ico-btn svg{width:14px;height:14px}
+
+    /* the case switch is mock chrome, same family as the state switch */
+    .cases{display:flex;align-items:center;gap:8px}
+    .cases .seg button{padding:5px 9px}
+
+    .scroll{flex:1;overflow-y:auto;min-height:0}
+    .wrap{max-width:720px;margin:0 auto;padding:0 28px}
+    .wrap-w{max-width:1000px;margin:0 auto;padding:0 28px}
+
+    .page{display:none;padding:58px 0 30px}
+    body.state-overview .page-ov,
+    body.state-skills .page-sk,
+    body.state-signals .page-sig{display:block}
+    .phead{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;
+      border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:22px}
+    .phead .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+    .phead h1{font-size:24px;font-weight:600;letter-spacing:-.015em}
+    .phead .sub{font-size:13.5px;color:var(--muted);margin-top:6px;max-width:58ch;line-height:1.5}
+    .phead-r{display:flex;gap:7px;flex-wrap:wrap}
+
+    /* ---- OVERVIEW ---- */
+    .ov-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+      border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;margin-bottom:24px}
+    @media (max-width:760px){.ov-stats{grid-template-columns:repeat(2,1fr)}}
+    .ov-stat{background:var(--card);padding:13px 15px}
+    .ov-stat .n{font-size:21px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+    .ov-stat .n em{font-style:normal;font-size:13px;color:var(--muted);font-weight:500}
+    .ov-stat .l{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-top:3px}
+    .bar{height:3px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
+    .bar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+
+    .ov-grid{display:grid;grid-template-columns:1.45fr 1fr;gap:22px;align-items:start}
+    @media (max-width:860px){.ov-grid{grid-template-columns:1fr}}
+    .blk{margin-bottom:22px}
+    .blk-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+    .blk-h h2{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);font-weight:500}
+    .blk-h a{font-size:12px;color:var(--accent)}
+
+    .ovp{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 14px;
+      border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--card);margin-bottom:7px;
+      transition:border-color .16s,transform .16s var(--ease)}
+    .ovp:hover{border-color:var(--line-2);transform:translateY(-1px)}
+    .ovp .b{min-width:0;flex:1}
+    .ovp .b b{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+    /* skills run, not stages passed */
+    .ovp .runs{display:flex;align-items:center;gap:4px;flex-wrap:nowrap}
+    .ovp .runs i{width:18px;height:18px;border-radius:var(--radius);display:grid;place-items:center;
+      border:1px solid var(--line-2);color:var(--faint);flex:none}
+    .ovp .runs i svg{width:10px;height:10px}
+    .ovp .runs i.u{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+    .ovp .runs .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--faint);
+      margin-left:7px;white-space:nowrap}
+    .ovp .runs .lab b{color:var(--fg);font-weight:600;display:inline}
+    .ovp .r{text-align:right;flex:none}
+    .ovp .r .st{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+      padding:3px 8px;border-radius:999px;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+    .ovp .r .st.go{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+    .ovp .r .ago{display:block;font-family:var(--mono);font-size:9px;color:var(--faint);margin-top:5px}
+
+    .fact{padding:11px 0;border-top:1px solid var(--line)}
+    .fact:first-of-type{border-top:none;padding-top:0}
+    .fact .fk{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);margin-bottom:4px}
+    .fact p{font-size:13px;line-height:1.5;color:var(--fg)}
+
+    .feed{display:grid;gap:0}
+    .fd{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:12.5px;line-height:1.45}
+    .fd:first-child{border-top:none}
+    .fd .ic{width:19px;height:19px;border-radius:50%;flex:none;display:grid;place-items:center;
+      background:var(--accent-soft);color:var(--accent);font-size:10px}
+    .fd .tx{min-width:0;color:var(--muted)}
+    .fd .tx b{color:var(--fg);font-weight:600}
+    .fd .tm{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--faint);flex:none}
+
+    /* most-used skills, client level */
+    .mini{display:flex;align-items:center;gap:9px;width:100%;text-align:left;padding:8px 0;
+      border-top:1px solid var(--line);font-size:13px}
+    .mini:first-of-type{border-top:none}
+    .mini .g{width:22px;height:22px;border-radius:var(--radius);flex:none;display:grid;place-items:center;
+      background:var(--accent-soft);color:var(--accent)}
+    .mini .g svg{width:12px;height:12px}
+    .mini .nm{font-weight:500}
+    .mini .ct{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+
+    /* ---- SKILL LIBRARY ---- */
+    .sk-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:26px}
+    @media (max-width:760px){.sk-grid{grid-template-columns:1fr}}
+    .scard{text-align:left;padding:15px;border:1px solid var(--line);border-radius:var(--radius-lg);
+      background:var(--card);transition:border-color .16s,transform .16s var(--ease)}
+    .scard:hover{border-color:var(--accent);transform:translateY(-1px)}
+    .scard .top{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+    .scard .g{width:28px;height:28px;border-radius:var(--radius-lg);flex:none;display:grid;place-items:center;
+      background:var(--accent);color:var(--accent-fg)}
+    .scard .g svg{width:15px;height:15px}
+    .scard .top b{font-size:14.5px;font-weight:600}
+    .scard .top .ag{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--faint);margin-left:auto;white-space:nowrap}
+    .scard p{font-size:13px;line-height:1.5;color:var(--muted);margin-bottom:11px}
+    .scard .cl{display:flex;flex-wrap:wrap;gap:4px}
+    .scard.new{border-style:dashed;background:transparent}
+    .scard.new .g{background:transparent;border:1px dashed var(--accent);color:var(--accent)}
+    /* an always-on agent reads differently from a thing you call */
+    .scard.wat .g{background:var(--accent-2);color:#fff}
+    .scard .addedby{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line-2);
+      font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent-2)}
+    /* one line under each phase heading, so the four groups mean something
+       to someone who wasn't in the room when they were named */
+    .ph-d{font-size:12.5px;color:var(--muted);margin:0 0 12px}
+
+    /* ---- SIGNAL PULSE ---- */
+    .lens{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--line-2);
+      border-radius:999px;background:var(--card);margin-bottom:8px}
+    .lens svg{width:14px;height:14px;color:var(--accent);flex:none}
+    .lens input{flex:1;border:none;background:none;font-family:var(--font);font-size:13.5px;color:var(--fg);min-width:0}
+    .lens input::placeholder{color:var(--faint)}
+    .lens .go{font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap}
+    .lens-note{font-size:11.5px;color:var(--faint);margin:0 0 18px 14px}
+
+    .tgrp{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--faint);display:flex;align-items:center;gap:8px;margin:0 0 8px}
+    .tgrp::after{content:'';flex:1;height:1px;background:var(--line)}
+    .tgrp.val{color:var(--accent)}
+
+    .trend{display:grid;grid-template-columns:26px 1fr auto;gap:13px;align-items:center;width:100%;text-align:left;
+      padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--card);
+      margin-bottom:6px;transition:border-color .16s}
+    .trend:hover{border-color:var(--line-2)}
+    .trend.val{border-left:2px solid var(--accent)}
+    .tr-n{font-family:var(--mono);font-size:11px;color:var(--faint);text-align:center}
+    .tr-b{min-width:0}
+    .tr-t{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:4px}
+    .tr-t b{font-size:14px;font-weight:600}
+    .tr-t .vb{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:2px 7px}
+    .tr-t .ty{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;
+      color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 7px}
+    .tr-b p{font-size:12.5px;line-height:1.45;color:var(--muted)}
+    .tr-m{display:flex;align-items:center;gap:18px;flex:none}
+    .tr-m div{text-align:right}
+    .tr-m .v{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+    .tr-m .v.up{color:#15a05a}
+    .tr-m .l{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-top:2px}
+    @media (max-width:700px){.trend{grid-template-columns:22px 1fr}.tr-m{grid-column:2;justify-content:flex-start;gap:22px;margin-top:6px}.tr-m div{text-align:left}}
+
+    /* ---- HOME ---- */
+    .home{display:none;min-height:100%;flex-direction:column;justify-content:center;padding:70px 0 44px}
+    body.state-home .home{display:flex}
+    .greet{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:26px}
+    .greet .star{font-size:27px;line-height:1;color:var(--accent-2)}
+    .greet h1{font-size:30px;font-weight:500;letter-spacing:-.02em}
+
+    .starters{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:16px}
+    .chip{padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:var(--card);
+      font-size:13px;color:var(--muted);transition:border-color .16s,color .16s}
+    .chip:hover{border-color:var(--accent);color:var(--fg)}
+
+    .recent{margin-top:44px}
+    .rhead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+    .rhead h2{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);font-weight:500}
+    .rhead a{font-size:12.5px;color:var(--accent)}
+    .rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    @media (max-width:760px){.rgrid{grid-template-columns:1fr}}
+    .rcard{text-align:left;padding:13px;border:1px solid var(--line);border-radius:var(--radius-lg);
+      background:var(--card);transition:border-color .16s,transform .16s var(--ease)}
+    .rcard:hover{border-color:var(--line-2);transform:translateY(-1px)}
+    .rcard .cl{display:flex;align-items:center;gap:7px;margin-bottom:9px}
+    .rcard .cl img{width:16px;height:16px;border-radius:50%;object-fit:contain;background:#fff;border:1px solid var(--line)}
+    .rcard .cl span{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .rcard b{display:block;font-size:14px;font-weight:600;margin-bottom:9px;line-height:1.25}
+    .rcard .ft{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:9.5px;
+      letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+    .pill{padding:2px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+
+    /* ---- THREAD ---- */
+    .thread{display:none;padding:58px 0 30px}
+    body.state-chat .t-chat,
+    body.state-rfi .t-rfi,
+    body.state-brief .t-brief{display:block}
+    .thead{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:26px}
+    .thead .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:5px}
+    .thead h1{font-size:21px;font-weight:600;letter-spacing:-.01em}
+    .thead .sub{font-size:13px;color:var(--muted);margin-top:5px}
+
+    .msg{margin-bottom:26px}
+    .msg.me{display:flex;justify-content:flex-end}
+    .msg.me .bub{background:var(--card-2);border:1px solid var(--line);border-radius:var(--radius-lg);
+      padding:10px 14px;font-size:14.5px;max-width:80%}
+    /* a skill the user attached to their own message, shown on the bubble */
+    .mchip{display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-end;margin-bottom:6px}
+    .uchip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
+      background:var(--accent);color:var(--accent-fg);font-family:var(--mono);font-size:9px;
+      letter-spacing:.1em;text-transform:uppercase}
+    .uchip svg{width:10px;height:10px}
+    .uchip.file{background:var(--card);color:var(--muted);border:1px solid var(--line-2)}
+
+    .agent{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+    .agent .ai{width:21px;height:21px;border-radius:var(--radius);flex:none;display:grid;place-items:center;
+      background:var(--accent);color:var(--accent-fg);font-size:11px;font-weight:700}
+    .agent b{font-size:13px;font-weight:600}
+    .agent .tag{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:2px 7px}
+    .say{font-size:14.5px;line-height:1.6;color:var(--fg)}
+    .say + .say{margin-top:10px}
+    .say em{color:var(--muted);font-style:normal}
+
+    /* suggested next moves — the replacement for a locked stage. The agent
+       offers; it doesn't gate. */
+    .offer{display:flex;flex-wrap:wrap;gap:7px;margin-top:13px}
+    .obtn{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;
+      border:1px solid var(--line-2);font-size:12.5px;font-weight:500;
+      transition:border-color .16s,background .16s}
+    .obtn:hover{border-color:var(--accent);background:var(--accent-soft)}
+    .obtn svg{width:12px;height:12px;color:var(--accent)}
+    .obtn.plain svg{display:none}
+
+    /* ---- the skill run card ----
+       The heart of B. A skill fired, these connectors woke up, this is what
+       each step returned, and here is the artifact. Collapsed by default in
+       the real thing; open here so the mock shows the mechanism. */
+    .run{margin-top:14px;border:1px solid var(--line);border-radius:var(--radius-lg);
+      background:var(--card);overflow:hidden}
+    .run-top{display:flex;align-items:center;gap:9px;padding:10px 14px;flex-wrap:wrap;
+      border-bottom:1px solid var(--line);background:var(--card-2)}
+    .run-top .g{width:21px;height:21px;border-radius:var(--radius);flex:none;display:grid;place-items:center;
+      background:var(--accent);color:var(--accent-fg)}
+    .run-top .g svg{width:12px;height:12px}
+    .run-top .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+    .run-top b{font-size:13.5px;font-weight:600}
+    .run-top .el{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--faint);white-space:nowrap}
+
+    /* connectors the skill switched on, listed before the work */
+    .run-conn{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:10px 14px;
+      border-bottom:1px solid var(--line)}
+    .run-conn .cl{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--faint);margin-right:3px}
+
+    .steps{padding:4px 14px 10px}
+    .step{display:flex;align-items:flex-start;gap:9px;padding:6px 0;font-size:13px;line-height:1.45}
+    .step .tick{width:14px;height:14px;border-radius:50%;flex:none;margin-top:2px;display:grid;place-items:center;
+      background:var(--accent-soft);color:var(--accent);font-size:8px}
+    .step .sx{min-width:0;color:var(--muted)}
+    .step .sx b{color:var(--fg);font-weight:600}
+    .step .sr{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--faint);flex:none;white-space:nowrap}
+    .step.live .tick{background:var(--accent-2-soft);color:var(--accent-2)}
+
+    /* the artifact a run produced */
+    .art{margin:0 14px 12px;border:1px solid var(--line-2);border-radius:var(--radius-lg);overflow:hidden}
+    .art-top{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--card-2);
+      border-bottom:1px solid var(--line)}
+    .art-top .k{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-2)}
+    .art-top b{font-size:13px;font-weight:600}
+    .art-top .ver{margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--faint)}
+    .ns{padding:13px 13px 0}
+    .ns .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:5px}
+    .ns .line{font-size:19px;font-weight:600;letter-spacing:-.01em}
+    .four{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);margin:13px 0 0}
+    @media (max-width:620px){.four{grid-template-columns:1fr}}
+    .c{background:var(--card);padding:12px 13px}
+    .c .ck{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+    .c .ck i{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-style:normal}
+    .c .ck span{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);
+      border:1px solid var(--line);border-radius:999px;padding:1px 6px}
+    .c p{font-size:13px;line-height:1.5;color:var(--fg)}
+    .bullets{padding:12px 13px}
+    .bullets li{list-style:none;font-size:13px;line-height:1.5;padding-left:15px;position:relative;margin-bottom:6px}
+    .bullets li:last-child{margin-bottom:0}
+    .bullets li::before{content:'';position:absolute;left:2px;top:7px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+    .bullets li b{font-weight:600}
+
+    .run-acts{display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 13px;align-items:center}
+    .btn{font-size:12.5px;font-weight:500;padding:7px 12px;border-radius:var(--radius-lg);
+      border:1px solid var(--line-2);color:var(--fg);transition:border-color .16s,background .16s}
+    .btn:hover{border-color:var(--accent)}
+    .btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+    .btn.pri:hover{filter:brightness(1.07)}
+    .btn.gh{border-color:var(--line)}
+    .mark{margin-left:auto;display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9.5px;
+      letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+    .mark svg{width:12px;height:12px}
+
+    /* ============================================================
+       CASE 1 — a plain chat, no skill armed.
+       Nothing ran, so there's no run card to show. What grounds the answer
+       instead is a one-line receipt of what it read. The cheapest possible
+       proof that chat alone is still inside the workspace.
+       ============================================================ */
+    .readfrom{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:14px;
+      padding-top:11px;border-top:1px solid var(--line)}
+    .readfrom .rl{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--faint);margin-right:2px}
+    .src{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;
+      border:1px solid var(--line);font-size:11.5px;color:var(--muted);transition:border-color .16s,color .16s}
+    .src:hover{border-color:var(--line-2);color:var(--fg)}
+    .src svg{width:10px;height:10px;opacity:.7;flex:none}
+
+    /* enough figure to answer the question — deliberately not a dashboard */
+    .mtab{margin-top:13px;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+    .mtab .r{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line);font-size:13px}
+    .mtab .r:first-child{border-top:none;background:var(--card-2);
+      font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+    .mtab .w{flex:1;min-width:0}
+    .mtab .v{font-variant-numeric:tabular-nums;font-weight:600;width:62px;text-align:right;flex:none}
+    .mtab .d{font-variant-numeric:tabular-nums;width:56px;text-align:right;flex:none;color:var(--muted);font-size:12.5px}
+    .mtab .d.dn{color:var(--accent-2);font-weight:600}
+    .mtab .r:first-child .v,.mtab .r:first-child .d{font-weight:400;font-size:8.5px}
+
+    /* a standalone list, outside an artifact card */
+    .bullets.bare{padding:11px 0 0}
+
+    /* ============================================================
+       CASE 2 — an RFI workbook in, a response draft out.
+       The interesting part isn't the answers, it's the refusals: the skill
+       has to show what it would not invent, or nobody can trust the 61 it
+       did write.
+       ============================================================ */
+    .cov{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line);
+      border-bottom:1px solid var(--line)}
+    @media (max-width:560px){.cov{grid-template-columns:repeat(2,1fr)}}
+    .cov div{background:var(--card);padding:10px 12px}
+    .cov .n{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+    .cov .n.warn{color:var(--accent-2)}
+    .cov .l{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--faint);margin-top:2px}
+
+    .qa{padding:12px 13px;border-top:1px solid var(--line)}
+    .qa .qh{display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap}
+    .qa .qn{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--faint)}
+    .qa .ty{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 6px}
+    .qa .ok{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 6px}
+    .qa .q{font-size:13px;font-weight:600;margin-bottom:5px;line-height:1.4}
+    .qa .a{font-size:13px;line-height:1.55;color:var(--muted)}
+    .qa .a b{color:var(--fg);font-weight:600}
+    .qa .cite{margin-top:7px;font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:var(--faint)}
+
+    /* what the skill refused to make up, in the warning colour on purpose */
+    .held{margin:12px 13px 0;border:1px solid var(--accent-2);border-radius:var(--radius-lg);
+      background:var(--accent-2-soft);padding:11px 13px}
+    .held .hh{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+      color:var(--accent-2);margin-bottom:7px}
+    .held li{list-style:none;font-size:12.5px;line-height:1.5;padding-left:14px;position:relative;margin-bottom:4px}
+    .held li:last-child{margin-bottom:0}
+    .held li::before{content:'';position:absolute;left:2px;top:7px;width:4px;height:4px;border-radius:50%;background:var(--accent-2)}
+    .held li b{font-family:var(--mono);font-size:10px;font-weight:500;color:var(--fg)}
+
+    /* files a run handed back */
+    .outfiles{display:flex;flex-wrap:wrap;gap:6px;padding:13px}
+    .ofile{display:inline-flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid var(--line-2);
+      border-radius:var(--radius-lg);background:var(--card-2);font-size:12.5px;transition:border-color .16s}
+    .ofile:hover{border-color:var(--accent)}
+    .ofile svg{width:13px;height:13px;color:var(--accent);flex:none}
+    .ofile .sz{font-family:var(--mono);font-size:9px;color:var(--faint)}
+
+    /* ============================================================
+       CASE 3 — a brief in, a 4C territory out, then one line refined.
+       The refinement deliberately does NOT produce a second run card:
+       editing an artifact isn't a skill call, and the UI shouldn't
+       pretend that it is.
+       ============================================================ */
+    .diff{margin-top:13px;border-left:2px solid var(--accent-2);padding:2px 0 2px 12px}
+    .diff .d{font-size:13.5px;line-height:1.55}
+    .diff .d.was{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1px}
+    .diff .d.now{color:var(--fg);font-weight:500;margin-top:4px}
+
+    /* ---- COMPOSER ---- */
+    .composer{padding:0 28px 22px;background:linear-gradient(to top,var(--bg) 62%,transparent)}
+    body.state-home .composer{background:none}
+    .cwrap{max-width:720px;margin:0 auto;position:relative}
+    .cbox{border:1px solid var(--line-2);border-radius:14px;background:var(--card);
+      box-shadow:var(--shadow-sm);transition:border-color .18s}
+    .cbox:focus-within{border-color:var(--accent)}
+
+    /* skills armed on this message, sitting above the text like attachments */
+    .armed{display:flex;flex-wrap:wrap;gap:5px;padding:11px 13px 0}
+    .armed:empty{display:none}
+    .achip{display:inline-flex;align-items:center;gap:6px;padding:4px 7px 4px 9px;border-radius:999px;
+      background:var(--accent-soft);border:1px solid var(--accent);font-size:12px;font-weight:500;color:var(--fg)}
+    .achip svg.i{width:11px;height:11px;color:var(--accent)}
+    .achip .x{display:grid;place-items:center;width:14px;height:14px;border-radius:50%;color:var(--muted)}
+    .achip .x:hover{background:var(--line);color:var(--fg)}
+    .achip .x svg{width:8px;height:8px}
+    .achip.file{background:var(--card-2);border-color:var(--line-2)}
+    .achip.file svg.i{color:var(--muted)}
+
+    .cta-in{width:100%;border:none;background:none;resize:none;font-family:var(--font);font-size:15px;
+      color:var(--fg);padding:15px 16px 6px;line-height:1.5;min-height:56px}
+    .cta-in::placeholder{color:var(--faint)}
+    .crow{display:flex;align-items:center;gap:7px;padding:8px 10px 10px;flex-wrap:wrap}
+    .cpill{display:flex;align-items:center;gap:7px;padding:5px 10px;border:1px solid var(--line);
+      border-radius:999px;font-size:12.5px;color:var(--muted);transition:border-color .16s,color .16s,background .16s}
+    .cpill:hover{border-color:var(--line-2);color:var(--fg)}
+    .cpill img{width:14px;height:14px;border-radius:50%;object-fit:contain;background:#fff}
+    .cpill svg{width:12px;height:12px;opacity:.6}
+    .cpill b{font-weight:600;color:var(--fg)}
+    /* the skill trigger is the primary control in B, so it carries accent */
+    .cpill.skills{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+    .cpill.skills svg{opacity:1}
+    .cpill.skills b{color:var(--accent)}
+    .cpill.skills kbd{font-family:var(--mono);font-size:9.5px;border:1px solid var(--accent);
+      border-radius:3px;padding:0 3px;opacity:.75}
+    .cpill.skills.open{background:var(--accent);color:var(--accent-fg)}
+    .cpill.skills.open b,.cpill.skills.open kbd{color:var(--accent-fg);border-color:currentColor}
+    .send{margin-left:auto;width:31px;height:31px;border-radius:999px;background:var(--accent);color:var(--accent-fg);
+      display:grid;place-items:center;flex:none}
+    .send svg{width:15px;height:15px}
+    .chint{max-width:720px;margin:8px auto 0;font-size:11.5px;color:var(--faint);text-align:center}
+
+    /* ---- the skill menu ----
+       Opens upward out of the composer. Grouped, searchable, and growing:
+       the point of B is that this list is never finished. */
+    .skmenu{position:absolute;left:0;right:0;bottom:calc(100% + 9px);z-index:8;display:none;
+      border:1px solid var(--line-2);border-radius:12px;background:var(--card);
+      box-shadow:var(--shadow-lg);overflow:hidden}
+    .skmenu.open{display:block}
+    .skm-find{display:flex;align-items:center;gap:9px;padding:11px 14px;border-bottom:1px solid var(--line)}
+    .skm-find svg{width:13px;height:13px;color:var(--faint);flex:none}
+    .skm-find input{flex:1;border:none;background:none;font-family:var(--font);font-size:13.5px;color:var(--fg);min-width:0}
+    .skm-find input::placeholder{color:var(--faint)}
+    /* recipes — a saved set of skills, not a pipeline. Pinned above the list
+       because a named outcome is easier to pick than a skill you half-remember. */
+    .skm-recipes{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:10px 14px;
+      border-bottom:1px solid var(--line);background:var(--card-2)}
+    .skm-recipes .rl{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--faint);margin-right:3px}
+    .rcp{padding:4px 10px;border-radius:999px;border:1px solid var(--line-2);background:var(--card);
+      font-size:12px;color:var(--muted);transition:border-color .16s,color .16s}
+    .rcp:hover{border-color:var(--accent);color:var(--fg)}
+
+    .skm-body{max-height:46vh;overflow-y:auto;padding:6px}
+    /* a skill whose inputs this project doesn't have yet. Still callable —
+       it just tells you what it will ask for first. */
+    .skm-row.wait .g{background:transparent;border:1px solid var(--line-2);color:var(--faint)}
+    .skm-row.wait .nm b{color:var(--muted)}
+    .need{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--accent-2);background:var(--accent-2-soft);border-radius:999px;padding:1px 6px}
+    .gives{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;
+      color:var(--faint);border:1px solid var(--line);border-radius:999px;padding:1px 6px}
+    /* an always-on agent is not a call — it's a switch, so it reads like one */
+    .tog{width:26px;height:15px;border-radius:999px;border:1px solid var(--line-2);flex:none;margin-top:6px;
+      position:relative;transition:background .16s,border-color .16s}
+    .tog::after{content:'';position:absolute;top:1px;left:1px;width:11px;height:11px;border-radius:50%;
+      background:var(--faint);transition:transform .18s var(--ease),background .18s}
+    .skm-row.watching .tog{background:var(--accent);border-color:var(--accent)}
+    .skm-row.watching .tog::after{transform:translateX(11px);background:var(--accent-fg)}
+    .skm-row.watching .g{background:var(--accent);color:var(--accent-fg)}
+    .skm-grp{display:flex;align-items:center;gap:7px;padding:9px 10px 5px;
+      font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+    .skm-grp .ct{margin-left:auto;letter-spacing:0}
+    .skm-row{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;padding:9px 10px;
+      border-radius:var(--radius-lg);transition:background .14s}
+    .skm-row:hover{background:var(--card-2)}
+    .skm-row .g{width:26px;height:26px;border-radius:var(--radius-lg);flex:none;display:grid;place-items:center;
+      background:var(--accent-soft);color:var(--accent);margin-top:1px}
+    .skm-row .g svg{width:14px;height:14px}
+    .skm-row .bd{min-width:0;flex:1}
+    .skm-row .nm{display:flex;align-items:center;gap:8px;margin-bottom:3px}
+    .skm-row .nm b{font-size:13.5px;font-weight:600}
+    .skm-row .nm .ag{font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+    .skm-row .ds{font-size:12.5px;line-height:1.4;color:var(--muted);margin-bottom:6px}
+    .skm-row .cl{display:flex;flex-wrap:wrap;gap:4px}
+    .skm-row.sel{background:var(--accent-soft)}
+    .skm-row .chk{width:15px;height:15px;border-radius:3px;border:1px solid var(--line-2);flex:none;
+      margin-top:6px;display:grid;place-items:center;color:transparent;font-size:9px}
+    .skm-row.sel .chk{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+    .skm-row.add .g{background:transparent;border:1px dashed var(--accent)}
+    .skm-foot{display:flex;align-items:center;gap:9px;padding:9px 14px;border-top:1px solid var(--line);
+      background:var(--card-2);flex-wrap:wrap}
+    .skm-foot .n{font-size:11.5px;color:var(--muted)}
+    .skm-foot .n b{color:var(--fg);font-weight:600}
+    .skm-foot .lnk{margin-left:auto;font-size:12px;color:var(--accent);font-weight:500}
+
+    /* the live wiring strip under the composer */
+    .grail{max-width:720px;margin:9px auto 0;display:flex;align-items:center;gap:5px;flex-wrap:wrap;
+      justify-content:center}
+    .grail .gl{font-family:var(--mono);font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;
+      color:var(--faint);margin-right:2px}
+    .grail .sep{width:1px;height:12px;background:var(--line);margin:0 4px}
+
+    @media (max-width:860px){
+      .app{grid-template-columns:1fr}
+      .side{display:none}
+      .wrap,.composer{padding-left:16px;padding-right:16px}
+    }
+  </style>
+</head>
+<body class="state-home">
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <g id="mek-lockup"><path fill="currentColor" d="M0,1.71h9.72l5.88,19.48h.08L21.48,1.71h9.76v29.6h-6.96l.24-22.16-.08-.08-6.32,22.24h-5L6.8,9.07l-.08.08.24,22.16H0V1.71Z"/><path fill="currentColor" d="M55.73,24.35c-1.08,2.48-2.64,4.4-4.52,5.68-1.84,1.32-4.04,2-6.32,2-6.36,0-11.76-5.16-11.76-11.76,0-6.2,4.88-11.92,11.64-11.92s11.72,5.36,11.72,12.12c0,.88-.08,1.24-.16,1.76h-16.64c.4,2.64,2.6,4.2,5.2,4.2,2.04,0,3.12-.92,4.04-2.08h6.8ZM49.84,17.75c-.28-1.32-1.6-3.8-5.04-3.8s-4.76,2.48-5.04,3.8h10.08Z"/><path fill="currentColor" d="M58.41,1.71h6.64v15.44h.08l6.16-8.04h7.88l-8.36,9.76,8.12,12.44h-7.52l-6.28-10.68h-.08v10.68h-6.64V1.71Z"/><path fill="var(--accent)" d="M80.65,16.97c0-9.69,6.98-16.97,16.5-16.97s16.54,7.07,16.54,16.04-7.19,16.46-16.16,16.46-16.88-6.26-16.88-15.53ZM105.7,16.29c0-4.91-3.51-9.27-8.55-9.27s-8.5,4.19-8.5,9.14,3.51,9.31,8.63,9.31,8.42-4.19,8.42-9.18Z"/><path fill="var(--accent)" d="M128.59,9.73c-.34-2.24-1.27-3.05-2.83-3.05-1.48,0-2.75,1.06-2.75,2.45,0,1.86,1.69,2.71,5.12,4.19,6.9,2.96,8.63,5.46,8.63,9.56,0,6.05-4.15,9.61-10.92,9.61s-11.3-3.55-11.3-10.28v-.68h7.96c.04,2.58,1.31,4.27,3.3,4.27,1.65,0,3-1.31,3-3,0-2.5-3.47-3.6-6.3-4.74-5.12-2.07-7.45-4.78-7.45-8.84,0-5.33,5.16-9.22,10.92-9.22,2.07,0,3.89.47,5.54,1.31,3.34,1.73,4.95,4.23,4.99,8.42h-7.91Z"/></g>
+
+    <!-- one glyph per skill, reused everywhere a skill is named -->
+    <symbol id="sk-brief" viewBox="0 0 16 16" fill="none">
+      <path d="M3.6 2.4h5.6L12.8 6v7.6H3.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M9 2.6v3.2h3.2M5.6 9h4.4M5.6 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-strat" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 .9v2.2M8 12.9v2.2M.9 8h2.2M12.9 8h2.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-concept" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1.8l1.5 4.2L13.8 7.5 9.5 9 8 13.2 6.5 9 2.2 7.5 6.5 6 8 1.8z" fill="currentColor"/>
+    </symbol>
+    <symbol id="sk-prod" viewBox="0 0 16 16" fill="none">
+      <rect x="2.2" y="3.4" width="11.6" height="9.2" rx="1.6" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M6.8 6.6 10 8l-3.2 1.4z" fill="currentColor"/>
+    </symbol>
+    <symbol id="sk-impact" viewBox="0 0 16 16" fill="none">
+      <path d="M2.4 13.2V9.6M6.1 13.2V5.2M9.9 13.2V7.4M13.6 13.2V3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-creator" viewBox="0 0 16 16" fill="none">
+      <circle cx="6.2" cy="5.4" r="2.3" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M1.9 13c0-2.4 1.9-3.8 4.3-3.8S10.5 10.6 10.5 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M11.2 4.2a2.2 2.2 0 0 1 0 4.1M12.6 13c0-1.8-.6-2.9-1.6-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-comply" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1.9l4.8 1.8v4.1c0 3-2 5.2-4.8 6.3-2.8-1.1-4.8-3.3-4.8-6.3V3.7L8 1.9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M5.9 7.9 7.5 9.5l2.8-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="sk-sim" viewBox="0 0 16 16" fill="none">
+      <circle cx="5.2" cy="5.2" r="2.6" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="10.8" cy="10.8" r="2.6" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M7.2 7.2l1.6 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-sheet" viewBox="0 0 16 16" fill="none">
+      <rect x="2.2" y="2.8" width="11.6" height="10.4" rx="1.4" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M2.2 6.2h11.6M6.4 6.2v7M2.2 9.7h11.6" stroke="currentColor" stroke-width="1.3"/>
+    </symbol>
+    <symbol id="sk-pen" viewBox="0 0 16 16" fill="none">
+      <path d="M10.4 2.6l3 3-7 7-3.8.8.8-3.8 7-7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M8.9 4.1l3 3" stroke="currentColor" stroke-width="1.3"/>
+    </symbol>
+    <symbol id="sk-out" viewBox="0 0 16 16" fill="none">
+      <path d="M8 1.9v8.4M4.9 7.2 8 10.3l3.1-3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M2.8 12.3v1.2h10.4v-1.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-cost" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 4.4v7.2M9.9 6.1a2 2 0 0 0-3.8.6c0 1.9 3.8.9 3.8 2.7a2 2 0 0 1-3.8.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-img" viewBox="0 0 16 16" fill="none">
+      <rect x="2.4" y="3" width="11.2" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="6" cy="6.4" r="1.1" fill="currentColor"/>
+      <path d="M2.8 11.4l3-2.6 2.6 2.3 2-1.6 2.8 2.2" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="sk-cal" viewBox="0 0 16 16" fill="none">
+      <rect x="2.4" y="3.4" width="11.2" height="10.2" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M2.4 6.6h11.2M5.4 2.2v2.4M10.6 2.2v2.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-radar" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="1.6" fill="currentColor"/>
+      <path d="M11.2 4.8a4.5 4.5 0 0 1 0 6.4M13.4 2.6a7.6 7.6 0 0 1 0 10.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M4.8 11.2a4.5 4.5 0 0 1 0-6.4M2.6 13.4a7.6 7.6 0 0 1 0-10.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="sk-bolt" viewBox="0 0 16 16" fill="none">
+      <path d="M9 1.8 3.6 9.2h3.6l-.6 5 5.4-7.4H8.4l.6-5z" fill="currentColor"/>
+    </symbol>
+    <symbol id="sk-plus" viewBox="0 0 16 16" fill="none">
+      <path d="M8 3.4v9.2M3.4 8h9.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="ic-file" viewBox="0 0 16 16" fill="none">
+      <path d="M4 2.6h5.4L12.4 5.6v7.8H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      <path d="M9.2 2.8v3h3" stroke="currentColor" stroke-width="1.5"/>
+    </symbol>
+    <symbol id="ic-x" viewBox="0 0 16 16" fill="none">
+      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+  </svg>
+
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="side">
+
+    <!-- ================= HOME — the client directory =================
+         Unchanged from version A. Clients are the top level; nothing else
+         exists until you're inside one. -->
+    <div class="side-mode side-home">
+      <div class="side-top">
+        <a href="clients.html" aria-label="MekOS"><svg class="logo-svg" viewBox="0 0 136.75 32.5"><use href="#mek-lockup"></use></svg></a>
+        <button class="snew">
+          <svg viewBox="0 0 16 16" fill="none"><use href="#sk-plus"></use></svg>
+          New client
+        </button>
+      </div>
+      <div class="side-scroll">
+        <button class="srow">
+          <svg viewBox="0 0 16 16" fill="none"><circle cx="7.2" cy="7.2" r="4.4" stroke="currentColor" stroke-width="1.5"/><path d="M10.6 10.6 13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Search
+        </button>
+
+        <div class="sgroup" style="margin-top:14px">
+          <div class="slabel">Clients <span class="ct" style="margin-left:auto;font-size:10px">4</span></div>
+          <button class="cli-row" data-enter>
+            <img src="assets/clients/amtrak.png" alt="" onerror="this.style.display='none'">
+            <span class="nm">Amtrak</span><span class="ct">3</span>
+          </button>
+          <button class="cli-row" data-enter>
+            <img src="assets/clients/drpepper.png" alt="" onerror="this.style.display='none'">
+            <span class="nm">Dr Pepper</span><span class="ct">2</span>
+          </button>
+          <button class="cli-row" data-enter>
+            <img src="assets/clients/delonghi.png" alt="" onerror="this.style.display='none'">
+            <span class="nm">De'Longhi</span><span class="ct">2</span>
+          </button>
+          <button class="cli-row" data-enter>
+            <img src="assets/clients/built.png" alt="" onerror="this.style.display='none'">
+            <span class="nm">Built Bar</span><span class="ct">2</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= CLIENT — scoped to one client =================
+         Same shape as A, with Skills added as a first-class section. Skills
+         are client-level because they're reusable across every project and
+         carry the client's Context with them. -->
+    <div class="side-mode side-client">
+      <div class="side-top">
+        <button class="back" data-exit>
+          <svg viewBox="0 0 16 16" fill="none"><path d="M9.6 4 5.8 8l3.8 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          All clients
+        </button>
+        <div class="ws-head">
+          <img src="assets/clients/amtrak.png" alt="" onerror="this.style.display='none'">
+          <b>Amtrak</b>
+        </div>
+        <button class="snew">
+          <svg viewBox="0 0 16 16" fill="none"><use href="#sk-plus"></use></svg>
+          New project
+        </button>
+      </div>
+
+      <div class="side-scroll">
+        <button class="srow">
+          <svg viewBox="0 0 16 16" fill="none"><circle cx="7.2" cy="7.2" r="4.4" stroke="currentColor" stroke-width="1.5"/><path d="M10.6 10.6 13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Search in Amtrak
+        </button>
+
+        <div style="margin-top:8px">
+          <button class="sub" data-nav="overview">
+            <svg viewBox="0 0 16 16" fill="none"><rect x="2.4" y="2.4" width="11.2" height="11.2" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M2.4 6.2h11.2" stroke="currentColor" stroke-width="1.5"/></svg>
+            Overview
+          </button>
+          <button class="sub" data-nav="context">
+            <svg viewBox="0 0 16 16" fill="none"><use href="#ic-file"></use></svg>
+            Context <span class="ct">92%</span>
+          </button>
+          <button class="sub" data-nav="skills">
+            <svg viewBox="0 0 16 16" fill="none"><use href="#sk-concept"></use></svg>
+            Skills &amp; actions <span class="ct">27</span>
+          </button>
+          <button class="sub" data-nav="signals">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M1.8 9.2h2.4L6 4.4l2.4 7L10.6 8h3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Signal pulse <span class="ct">8 · 4&#9670;</span>
+          </button>
+          <button class="sub" data-nav="library">
+            <svg viewBox="0 0 16 16" fill="none"><rect x="2.4" y="2.4" width="11.2" height="11.2" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M2.4 10.2l3-2.8 3.2 3 2-1.8 3 2.6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            Library <span class="new">New</span>
+          </button>
+          <button class="sub" data-nav="team">
+            <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.2" r="2.4" stroke="currentColor" stroke-width="1.5"/><path d="M3 13c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Team &amp; access <span class="ct">6</span>
+          </button>
+        </div>
+
+        <div class="sub-lbl">Chats <span class="new">New</span></div>
+        <button class="chat" data-nav="chat"><span class="dot"></span><span class="nm">Why did Corridor bookings dip?</span></button>
+        <button class="chat"><span class="dot"></span><span class="nm">Competitive sweep · shuttles</span></button>
+        <button class="chat"><span class="dot"></span><span class="nm">Positioning for Acela</span></button>
+        <button class="chat"><span class="dot"></span><span class="nm">Guest Rewards enrolment ideas</span></button>
+        <button class="more">All chats &#8594;</button>
+
+        <!-- No stage bar in B. The card shows which skills this project has
+             actually run, so progress reads as work done, not steps passed. -->
+        <div class="sub-lbl">Projects <span class="ct">3</span></div>
+
+        <button class="pcard" data-nav="brief" data-go-card="brief">
+          <span class="pc-n">Acela relaunch</span>
+          <span class="pc-b">
+            <span class="pc-sk">
+              <i class="u"><svg><use href="#sk-strat"></use></svg></i>
+              <i><svg><use href="#sk-concept"></use></svg></i>
+              <i><svg><use href="#sk-prod"></use></svg></i>
+              <i><svg><use href="#sk-impact"></use></svg></i>
+            </span>
+            <span class="pc-s">1 skill · 2h</span>
+          </span>
+        </button>
+
+        <button class="pcard" data-nav="rfi" data-go-card="rfi">
+          <span class="pc-n">FY27 roster RFI</span>
+          <span class="pc-b">
+            <span class="pc-sk">
+              <i class="u"><svg><use href="#sk-sheet"></use></svg></i>
+              <i class="u"><svg><use href="#sk-pen"></use></svg></i>
+              <i class="u"><svg><use href="#sk-out"></use></svg></i>
+              <i><svg><use href="#sk-comply"></use></svg></i>
+            </span>
+            <span class="pc-s">3 skills · due 14 Nov</span>
+          </span>
+        </button>
+
+        <button class="pcard" data-go-card="brief">
+          <span class="pc-n">Guest Rewards growth</span>
+          <span class="pc-b">
+            <span class="pc-sk">
+              <i class="u"><svg><use href="#sk-brief"></use></svg></i>
+              <i class="u"><svg><use href="#sk-concept"></use></svg></i>
+              <i class="u"><svg><use href="#sk-prod"></use></svg></i>
+              <i class="u"><svg><use href="#sk-impact"></use></svg></i>
+            </span>
+            <span class="pc-s">6 skills · 1d</span>
+          </span>
+        </button>
+      </div>
+
+      <div class="wired">
+        <div class="wl">Wired to this workspace</div>
+        <div class="ws">
+          <span class="conn on">Claude Opus 5</span>
+          <span class="conn on">Waldo</span>
+          <span class="conn on">Context 92%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= PROJECT — one project, nothing else =================
+         In A this panel held a five-rung ladder. In B it holds a log: the
+         skills that have run, the files the project was given, and the
+         client inputs every skill reads from. -->
+    <div class="side-mode side-project side-brief">
+      <div class="side-top">
+        <button class="back" data-exit-proj>
+          <svg viewBox="0 0 16 16" fill="none"><path d="M9.6 4 5.8 8l3.8 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Amtrak
+        </button>
+        <div class="pj-head">
+          <div class="k">Project</div>
+          <h2>Acela relaunch</h2>
+          <span class="st">Active · 1 skill run · 2 artifacts</span>
+        </div>
+      </div>
+
+      <div class="side-scroll">
+        <div class="sub-lbl" style="padding-top:4px">Skills in this project</div>
+        <div class="sk-l">
+          <button class="skr ran"><span class="g"><svg><use href="#sk-strat"></use></svg></span>4Cs Engine<span class="ct">1 run</span></button>
+          <button class="skr"><span class="g"><svg><use href="#sk-concept"></use></svg></span>Platform Writer</button>
+          <button class="skr"><span class="g"><svg><use href="#sk-concept"></use></svg></span>Territory Generator</button>
+          <button class="skr"><span class="g"><svg><use href="#sk-prod"></use></svg></span>Motion Graphics</button>
+          <button class="skr add" data-open-skills><span class="g"><svg><use href="#sk-plus"></use></svg></span>Add a skill</button>
+        </div>
+
+        <div class="sub-lbl">Threads</div>
+        <button class="chat on"><span class="dot"></span><span class="nm">Positioning for Acela</span></button>
+        <button class="chat"><span class="dot"></span><span class="nm">Tone check · public sector</span></button>
+        <button class="more">+ New thread</button>
+
+
+        <!-- Agents that are running, not calls you made. Separate heading on
+             purpose: "turn off" and "run again" are different gestures and
+             should never sit in the same list. -->
+        <div class="sub-lbl">Running <span class="ct">LIVE</span></div>
+        <div class="runs-l">
+          <button class="skr ran live"><span class="g"><svg><use href="#sk-radar"></use></svg></span>Culture Radar<span class="ct">on</span></button>
+          <button class="skr live-off"><span class="g"><svg><use href="#sk-comply"></use></svg></span>PM Agent<span class="ct">off</span></button>
+        </div>
+        <div class="sub-lbl">Files <span class="ct">3</span></div>
+        <button class="fl"><svg><use href="#ic-file"></use></svg>Acela_Brief_Q4.pdf<span class="ct">2.4mb</span></button>
+        <button class="fl"><svg><use href="#ic-file"></use></svg>Corridor_booking_data.xlsx<span class="ct">880kb</span></button>
+        <button class="fl"><svg><use href="#ic-file"></use></svg>Brand_guidelines_2026.pdf<span class="ct">11mb</span></button>
+        <button class="more">+ Add files</button>
+
+        <div class="sub-lbl">Reading from</div>
+        <div class="feeds">
+          <button class="feed-r" data-feed="overview">
+            <svg viewBox="0 0 16 16" fill="none"><use href="#ic-file"></use></svg>
+            Context <span class="ct">92%</span>
+          </button>
+          <button class="feed-r" data-feed="signals">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M1.8 9.2h2.4L6 4.4l2.4 7L10.6 8h3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Signal pulse <span class="ct">8 · 4&#9670;</span>
+          </button>
+          <button class="feed-r">
+            <svg viewBox="0 0 16 16" fill="none"><use href="#sk-plus"></use></svg>
+            Add a source
+          </button>
+        </div>
+      </div>
+
+      <div class="wired">
+        <div class="wl">Live in this project</div>
+        <div class="ws">
+          <span class="conn on">Claude Opus 5</span>
+          <span class="conn on">Waldo</span>
+          <span class="conn lit">GWI</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= PROJECT — the RFI response =================
+         Same panel, a completely different set of skills. That's the test
+         of the model: nothing structural changes between a creative project
+         and a new-business one, only which skills are in the list. -->
+    <div class="side-mode side-project side-rfi">
+      <div class="side-top">
+        <button class="back" data-exit-proj>
+          <svg viewBox="0 0 16 16" fill="none"><path d="M9.6 4 5.8 8l3.8 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Amtrak
+        </button>
+        <div class="pj-head">
+          <div class="k">Project</div>
+          <h2>FY27 roster RFI</h2>
+          <span class="st">3 skills run · due 14 Nov</span>
+        </div>
+      </div>
+
+      <div class="side-scroll">
+        <div class="sub-lbl" style="padding-top:4px">Skills in this project</div>
+        <div class="sk-l">
+          <button class="skr ran"><span class="g"><svg><use href="#sk-sheet"></use></svg></span>RFP Decoder<span class="ct">1 run</span></button>
+          <button class="skr ran"><span class="g"><svg><use href="#sk-pen"></use></svg></span>Answer Writer<span class="ct">1 run</span></button>
+          <button class="skr ran"><span class="g"><svg><use href="#sk-out"></use></svg></span>Export Pack<span class="ct">1 run</span></button>
+          <button class="skr"><span class="g"><svg><use href="#sk-comply"></use></svg></span>Fact Check</button>
+          <button class="skr"><span class="g"><svg><use href="#sk-sheet"></use></svg></span>Scope Composer</button>
+          <button class="skr add" data-open-skills><span class="g"><svg><use href="#sk-plus"></use></svg></span>Add a skill</button>
+        </div>
+
+        <div class="sub-lbl">Threads</div>
+        <button class="chat on"><span class="dot"></span><span class="nm">Capability tabs</span></button>
+        <button class="chat"><span class="dot"></span><span class="nm">Commercial terms wording</span></button>
+        <button class="more">+ New thread</button>
+
+
+        <!-- Agents that are running, not calls you made. Separate heading on
+             purpose: "turn off" and "run again" are different gestures and
+             should never sit in the same list. -->
+        <div class="sub-lbl">Running <span class="ct">LIVE</span></div>
+        <div class="runs-l">
+          <button class="skr ran live"><span class="g"><svg><use href="#sk-radar"></use></svg></span>Culture Radar<span class="ct">on</span></button>
+          <button class="skr live-off"><span class="g"><svg><use href="#sk-comply"></use></svg></span>PM Agent<span class="ct">off</span></button>
+        </div>
+        <div class="sub-lbl">Files <span class="ct">3</span></div>
+        <button class="fl"><svg><use href="#ic-file"></use></svg>Amtrak_FY27_RFI.xlsx<span class="ct">1.1mb</span></button>
+        <button class="fl"><svg><use href="#ic-file"></use></svg>Mekanism_capabilities.pdf<span class="ct">6.2mb</span></button>
+        <button class="fl"><svg><use href="#ic-file"></use></svg>Rate_card_FY27.xlsx<span class="ct">44kb</span></button>
+        <button class="more">+ Add files</button>
+
+        <div class="sub-lbl">Reading from</div>
+        <div class="feeds">
+          <button class="feed-r" data-feed="overview">
+            <svg viewBox="0 0 16 16" fill="none"><use href="#ic-file"></use></svg>
+            Context <span class="ct">92%</span>
+          </button>
+          <button class="feed-r">
+            <svg viewBox="0 0 16 16" fill="none"><rect x="2.4" y="2.4" width="11.2" height="11.2" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M2.4 10.2l3-2.8 3.2 3 2-1.8 3 2.6" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            Library <span class="ct">54 answers</span>
+          </button>
+          <button class="feed-r">
+            <svg viewBox="0 0 16 16" fill="none"><use href="#sk-plus"></use></svg>
+            Add a source
+          </button>
+        </div>
+      </div>
+
+      <div class="wired">
+        <div class="wl">Live in this project</div>
+        <div class="ws">
+          <span class="conn on">Claude Opus 5</span>
+          <span class="conn on">Waldo</span>
+          <span class="conn lit">Excel</span>
+          <span class="conn lit">Library</span>
+          <span class="conn lit">Word</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-foot">
+      <span class="av">UA</span>
+      <span class="who"><b>User A</b><span>Manager</span></span>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="main">
+
+    <div class="mockbar">
+      <span class="mocklab">Version <b>B</b></span>
+      <div class="seg">
+        <button data-go="home" class="on">Home</button>
+        <button data-go="overview">Client</button>
+        <button data-go="skills">Skills</button>
+        <button data-go="signals">Signals</button>
+      </div>
+      <!-- the three cases, each a full thread rather than a fragment -->
+      <div class="cases">
+        <span class="mocklab">Cases</span>
+        <div class="seg">
+          <button data-go="chat" title="Plain chat, no skill">1 · Chat</button>
+          <button data-go="rfi" title="Excel RFI in, response draft out">2 · RFI</button>
+          <button data-go="brief" title="Brief in, 4C out">3 · Brief</button>
+        </div>
+      </div>
+      <button class="ico-btn" id="theme" title="Toggle theme" aria-label="Toggle theme">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M13 9.6A5.6 5.6 0 0 1 6.4 3a5.6 5.6 0 1 0 6.6 6.6Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div class="scroll">
+
+      <!-- ---------- HOME ---------- -->
+      <section class="home">
+        <div class="wrap">
+          <div class="greet">
+            <span class="star">✳</span>
+            <h1>Good afternoon, Yenfu</h1>
+          </div>
+
+          <div class="starters">
+            <button class="chip">Brief me on this week's signals</button>
+            <button class="chip">Strategy from a deck I'll drop in</button>
+            <button class="chip">Concept against a validated trend</button>
+            <button class="chip">What moved bookings last week?</button>
+          </div>
+
+          <div class="recent">
+            <div class="rhead"><h2>Pick up where you left off</h2><a href="#">All projects →</a></div>
+            <div class="rgrid">
+              <button class="rcard">
+                <span class="cl"><img src="assets/clients/amtrak.png" alt="" onerror="this.style.display='none'"><span>Amtrak</span></span>
+                <b>Acela relaunch</b>
+                <span class="ft"><span class="pill">Strategy</span> 2h ago</span>
+              </button>
+              <button class="rcard">
+                <span class="cl"><img src="assets/clients/delonghi.png" alt="" onerror="this.style.display='none'"><span>De'Longhi</span></span>
+                <b>Maestosa launch</b>
+                <span class="ft"><span class="pill">Concepting</span> Yesterday</span>
+              </button>
+              <button class="rcard">
+                <span class="cl"><img src="assets/clients/built.png" alt="" onerror="this.style.display='none'"><span>Built Bar</span></span>
+                <b>The 3AM Brand</b>
+                <span class="ft"><span class="pill">Production</span> 3d ago</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- CLIENT OVERVIEW ----------
+           Same job as in A — read back everything MekOS holds about this
+           client — but projects report skills run instead of stages passed,
+           and a Skills block sits above Context in the right column. -->
+      <section class="page page-ov">
+        <div class="wrap-w">
+          <header class="phead">
+            <div>
+              <div class="k">Client workspace</div>
+              <h1>Amtrak</h1>
+              <p class="sub">National passenger railroad of the U.S. · Washington, D.C. · founded 1971 · ~20,000 employees</p>
+            </div>
+            <div class="phead-r">
+              <button class="btn">Edit Context</button>
+              <button class="btn pri">New project</button>
+            </div>
+          </header>
+
+          <div class="ov-stats">
+            <div class="ov-stat">
+              <div class="n">92<em>%</em></div><div class="l">Context filled</div>
+              <div class="bar"><i style="width:92%"></i></div>
+            </div>
+            <div class="ov-stat">
+              <div class="n">8 <em>· 4 validated</em></div><div class="l">Signals this week</div>
+              <div class="bar"><i style="width:50%"></i></div>
+            </div>
+            <div class="ov-stat">
+              <div class="n">3</div><div class="l">Active projects</div>
+              <div class="bar"><i style="width:33%"></i></div>
+            </div>
+            <div class="ov-stat">
+              <div class="n">10</div><div class="l">Skill runs this week</div>
+              <div class="bar"><i style="width:72%"></i></div>
+            </div>
+          </div>
+
+          <div class="ov-grid">
+            <div>
+              <div class="blk">
+                <div class="blk-h"><h2>Projects</h2><a href="#">All projects →</a></div>
+
+                <button class="ovp" data-go-card="brief">
+                  <span class="b">
+                    <b>Acela relaunch</b>
+                    <span class="runs">
+                      <i class="u"><svg><use href="#sk-strat"></use></svg></i>
+                      <i><svg><use href="#sk-sim"></use></svg></i>
+                      <i><svg><use href="#sk-concept"></use></svg></i>
+                      <i><svg><use href="#sk-prod"></use></svg></i>
+                      <i><svg><use href="#sk-impact"></use></svg></i>
+                      <span class="lab"><b>1</b> skill run</span>
+                    </span>
+                  </span>
+                  <span class="r"><span class="st go">Positioning v2</span><span class="ago">2h ago</span></span>
+                </button>
+
+                <button class="ovp" data-go-card="rfi">
+                  <span class="b">
+                    <b>FY27 roster RFI</b>
+                    <span class="runs">
+                      <i class="u"><svg><use href="#sk-sheet"></use></svg></i>
+                      <i class="u"><svg><use href="#sk-pen"></use></svg></i>
+                      <i class="u"><svg><use href="#sk-out"></use></svg></i>
+                      <i><svg><use href="#sk-comply"></use></svg></i>
+                      <i><svg><use href="#sk-brief"></use></svg></i>
+                      <span class="lab"><b>3</b> skills run</span>
+                    </span>
+                  </span>
+                  <span class="r"><span class="st go">Draft exported</span><span class="ago">Due 14 Nov</span></span>
+                </button>
+
+                <button class="ovp" data-go-card="brief">
+                  <span class="b">
+                    <b>Guest Rewards growth</b>
+                    <span class="runs">
+                      <i class="u"><svg><use href="#sk-brief"></use></svg></i>
+                      <i class="u"><svg><use href="#sk-strat"></use></svg></i>
+                      <i class="u"><svg><use href="#sk-concept"></use></svg></i>
+                      <i class="u"><svg><use href="#sk-prod"></use></svg></i>
+                      <i class="u"><svg><use href="#sk-impact"></use></svg></i>
+                      <span class="lab"><b>6</b> skills run</span>
+                    </span>
+                  </span>
+                  <span class="r"><span class="st">In production</span><span class="ago">Yesterday</span></span>
+                </button>
+              </div>
+
+              <div class="blk">
+                <div class="blk-h"><h2>Recent activity</h2></div>
+                <div class="feed">
+                  <div class="fd"><span class="ic">◈</span><span class="tx"><b>4Cs Engine</b> ran on <b>Acela relaunch</b> — Waldo + 4 validated signals</span><span class="tm">2h</span></div>
+                  <div class="fd"><span class="ic">◇</span><span class="tx"><b>Culture Radar</b> flagged a shuttle fare cut — second this quarter</span><span class="tm">3h</span></div>
+                  <div class="fd"><span class="ic">◆</span><span class="tx">4 trends validated in this week's <b>Signal pulse</b></span><span class="tm">6h</span></div>
+                  <div class="fd"><span class="ic">+</span><span class="tx"><b>Answer Writer</b> and <b>Export Pack</b> added by the team — the RFI needed them</span><span class="tm">2d</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="blk">
+                <div class="blk-h"><h2>Skills in play</h2><a href="#" data-nav-link="skills">All 27 →</a></div>
+                <button class="mini"><span class="g"><svg><use href="#sk-pen"></use></svg></span><span class="nm">Brief Builder</span><span class="ct">4 runs</span></button>
+                <button class="mini"><span class="g"><svg><use href="#sk-strat"></use></svg></span><span class="nm">4Cs Engine</span><span class="ct">3 runs</span></button>
+                <button class="mini"><span class="g"><svg><use href="#sk-sheet"></use></svg></span><span class="nm">RFP Decoder</span><span class="ct">2 runs</span></button>
+                <button class="mini"><span class="g"><svg><use href="#sk-radar"></use></svg></span><span class="nm">Culture Radar</span><span class="ct">watching</span></button>
+              </div>
+
+              <div class="blk">
+                <div class="blk-h"><h2>Context</h2><a href="#">Open →</a></div>
+                <div class="fact">
+                  <div class="fk">Mission</div>
+                  <p>Connect America safely, efficiently and sustainably — and make the train a relevant, modern travel choice.</p>
+                </div>
+                <div class="fact">
+                  <div class="fk">Goals</div>
+                  <p>Grow ridership, promote Acela and new trainsets, increase loyalty enrolment, and position rail as the sustainable choice.</p>
+                </div>
+                <div class="fact">
+                  <div class="fk">Competitors</div>
+                  <p>Domestic airline shuttles, intercity buses (Megabus, FlixBus), and driving.</p>
+                </div>
+                <div class="fact">
+                  <div class="fk">Voice</div>
+                  <p>Welcoming, modern and a little nostalgic — the romance of rail, told currently.</p>
+                </div>
+                <div class="fact">
+                  <div class="fk">Compliance</div>
+                  <p>Public-sector messaging review, ADA accessibility, safety messaging and fare disclosure.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- SKILL LIBRARY ----------
+           The five old stages are the first five cards. They sit beside skills
+           that never fitted the sequence at all — which is the argument for
+           the model: the list grows sideways, not longer. -->
+      <section class="page page-sk">
+        <div class="wrap-w">
+          <header class="phead">
+            <div>
+              <div class="k">Amtrak · workspace</div>
+              <h1>Skills &amp; actions</h1>
+              <p class="sub">Twenty-seven, grouped the way the team already talks about the work. Every one carries Amtrak&rsquo;s Context and switches on its own connectors. The groups are labels, not gates — call them from the chat input in any order.</p>
+            </div>
+            <div class="phead-r">
+              <button class="btn">Manage connectors</button>
+              <button class="btn pri">Add a skill</button>
+            </div>
+          </header>
+
+          <!-- rendered from the same CATALOG as the composer menu, so the
+               two can never drift apart -->
+          <div id="skpage"></div>
+        </div>
+      </section>
+
+      <!-- ---------- SIGNAL PULSE ----------
+           Carried over from A unchanged. In B it's also a skill input: any
+           trend here can be the starting point for a Strategy or Concepting
+           run without a brief existing first. -->
+      <section class="page page-sig">
+        <div class="wrap-w">
+          <header class="phead">
+            <div>
+              <div class="k">Amtrak · this week</div>
+              <h1>Signal pulse</h1>
+              <p class="sub">8 detected · 4 validated · scanning social, keywords, hashtags, creators, communities, reviews and news. Cadence: daily.</p>
+            </div>
+            <div class="phead-r">
+              <button class="btn">Sources</button>
+              <button class="btn pri">Run a skill on a trend</button>
+            </div>
+          </header>
+
+          <div class="lens">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l1.6 5L19 9.6 14 11.4 12 16l-2-4.6L5 9.6 10.4 8 12 3z" fill="currentColor"/></svg>
+            <input placeholder="Ask the Signal Agent to re-rank — e.g. “fastest-rising”, “risks only”, “where creators are”" />
+            <span class="go">Re-rank</span>
+          </div>
+          <p class="lens-note">Validated trends stay pinned together at the top, whatever you ask for.</p>
+
+          <div class="tgrp val">◆ Validated this week</div>
+
+          <button class="trend val">
+            <span class="tr-n">01</span>
+            <span class="tr-b">
+              <span class="tr-t"><b>The Five-Hour Flight</b><span class="vb">◆ Validated</span><span class="ty">Format</span></span>
+              <p>People posting the honest door-to-door maths on a 70-minute shuttle. The comments do the selling.</p>
+            </span>
+            <span class="tr-m">
+              <div><div class="v">91</div><div class="l">VPS</div></div>
+              <div><div class="v up">+34.2%</div><div class="l">7d</div></div>
+            </span>
+          </button>
+
+          <button class="trend val">
+            <span class="tr-n">02</span>
+            <span class="tr-b">
+              <span class="tr-t"><b>Train Desk Setup</b><span class="vb">◆ Validated</span><span class="ty">Creator</span></span>
+              <p>Laptop, coffee, window. Filmed as a flex about getting a workday back, not about the train.</p>
+            </span>
+            <span class="tr-m">
+              <div><div class="v">88</div><div class="l">VPS</div></div>
+              <div><div class="v up">+28.7%</div><div class="l">7d</div></div>
+            </span>
+          </button>
+
+          <button class="trend val">
+            <span class="tr-n">03</span>
+            <span class="tr-b">
+              <span class="tr-t"><b>Quiet Car Discourse</b><span class="vb">◆ Validated</span><span class="ty">Community</span></span>
+              <p>Etiquette arguments that reliably go wide. High reach, needs a light touch — we'd observe, not join.</p>
+            </span>
+            <span class="tr-m">
+              <div><div class="v">84</div><div class="l">VPS</div></div>
+              <div><div class="v up">+25.1%</div><div class="l">7d</div></div>
+            </span>
+          </button>
+
+          <button class="trend val">
+            <span class="tr-n">04</span>
+            <span class="tr-b">
+              <span class="tr-t"><b>Window Seat POV</b><span class="vb">◆ Validated</span><span class="ty">Format</span></span>
+              <p>Long, silent scenic clips. Cheap to make, travels further than anything we'd script.</p>
+            </span>
+            <span class="tr-m">
+              <div><div class="v">79</div><div class="l">VPS</div></div>
+              <div><div class="v up">+21.4%</div><div class="l">7d</div></div>
+            </span>
+          </button>
+
+          <div class="tgrp" style="margin-top:20px">Detected · not yet reviewed</div>
+
+          <button class="trend">
+            <span class="tr-n">05</span>
+            <span class="tr-b">
+              <span class="tr-t"><b>@Amtrak reply-guy moment</b><span class="ty">Social</span></span>
+              <p>A single reply is outperforming the account's last month of posts.</p>
+            </span>
+            <span class="tr-m">
+              <div><div class="v">86</div><div class="l">VPS</div></div>
+              <div><div class="v up">+31.0%</div><div class="l">7d</div></div>
+            </span>
+          </button>
+
+          <button class="trend">
+            <span class="tr-n">06</span>
+            <span class="tr-b">
+              <span class="tr-t"><b>#AcelaFirst climbing</b><span class="ty">Hashtag</span></span>
+              <p>Mostly business travellers posting upgrade moments.</p>
+            </span>
+            <span class="tr-m">
+              <div><div class="v">81</div><div class="l">VPS</div></div>
+              <div><div class="v up">+27.3%</div><div class="l">7d</div></div>
+            </span>
+          </button>
+
+          <button class="trend">
+            <span class="tr-n">07</span>
+            <span class="tr-b">
+              <span class="tr-t"><b>Rail sustainability creators</b><span class="ty">Influencer</span></span>
+              <p>Climate creators using per-passenger emissions comparisons.</p>
+            </span>
+            <span class="tr-m">
+              <div><div class="v">74</div><div class="l">VPS</div></div>
+              <div><div class="v up">+19.8%</div><div class="l">7d</div></div>
+            </span>
+          </button>
+
+          <button class="trend">
+            <span class="tr-n">08</span>
+            <span class="tr-b">
+              <span class="tr-t"><b>Megabus price complaints</b><span class="ty">Keyword</span></span>
+              <p>Competitor friction. Worth watching, not worth answering.</p>
+            </span>
+            <span class="tr-m">
+              <div><div class="v">68</div><div class="l">VPS</div></div>
+              <div><div class="v up">+16.2%</div><div class="l">7d</div></div>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           CASE 1 — a plain chat.
+           The baseline. No project, no skill, no run card. It has to be
+           genuinely useful on its own, or the skills look like the only
+           reason to be here. What makes it MekOS rather than a chatbot is
+           the receipt at the bottom of the answer.
+           ========================================================== -->
+      <section class="thread t-chat">
+        <div class="wrap">
+          <header class="thead">
+            <div class="k">Amtrak · chat</div>
+            <h1>Why did Corridor bookings dip?</h1>
+            <p class="sub">Client-level thread · no project, no skills armed</p>
+          </header>
+
+          <div class="msg me"><div class="bub">Corridor bookings were down 6% last week. Before I take this to the client — what actually happened?</div></div>
+
+          <div class="msg">
+            <div class="agent">
+              <span class="ai">✳</span><b>MekOS</b>
+              <span class="tag">No skills · reading the workspace</span>
+            </div>
+            <p class="say">Three things moved that week. Only one of them is ours.</p>
+            <ul class="bullets bare">
+              <li><b>Not us.</b> A 90-minute fault on the booking path on Tuesday the 14th. Ops logged it, and it shows in the workbook as failed sessions — not as lost demand.</li>
+              <li><b>Partly us.</b> Paid social was dark Wednesday to Saturday, between flights. Four days with no support behind the route.</li>
+              <li><b>Mostly them.</b> The DCA–LGA shuttle dropped fares the same week. Second time this quarter.</li>
+            </ul>
+            <p class="say">Strip the outage out and the real dip is nearer 4%, and about two-thirds of that tracks the dark days. I wouldn't lead with the fault — it invites a conversation about reliability you don't want inside a bookings review.</p>
+
+            <div class="readfrom">
+              <span class="rl">Read from</span>
+              <button class="src"><svg><use href="#ic-file"></use></svg>Context 92%</button>
+              <button class="src"><svg><use href="#ic-file"></use></svg>Corridor_booking_data.xlsx</button>
+              <button class="src"><svg viewBox="0 0 16 16" fill="none"><path d="M1.8 9.2h2.4L6 4.4l2.4 7L10.6 8h3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Signal pulse</button>
+              <button class="src"><svg><use href="#sk-impact"></use></svg>Analytics · last run 4d</button>
+            </div>
+          </div>
+
+          <div class="msg me"><div class="bub">Show me the fare drop.</div></div>
+
+          <div class="msg">
+            <div class="agent">
+              <span class="ai">✳</span><b>MekOS</b>
+              <span class="tag">Still no skills</span>
+            </div>
+            <p class="say">Lowest advertised one-way, DCA–NYC, week over week:</p>
+
+            <div class="mtab">
+              <div class="r"><span class="w">Fare</span><span class="v">Now</span><span class="d">7d</span></div>
+              <div class="r"><span class="w">Airline shuttle</span><span class="v">$89</span><span class="d dn">−31%</span></div>
+              <div class="r"><span class="w">Megabus</span><span class="v">$19</span><span class="d dn">−24%</span></div>
+              <div class="r"><span class="w">Acela</span><span class="v">$147</span><span class="d">—</span></div>
+            </div>
+
+            <p class="say" style="margin-top:13px">Second cut this quarter, both times mid-month. If that's a pattern rather than a sale, it's a strategy question and not a media one — and we shouldn't be answering it with a discount.</p>
+
+            <div class="readfrom">
+              <span class="rl">Read from</span>
+              <button class="src"><svg><use href="#sk-brief"></use></svg>Apify · fare scrape, 14 Oct</button>
+              <button class="src"><svg viewBox="0 0 16 16" fill="none"><path d="M1.8 9.2h2.4L6 4.4l2.4 7L10.6 8h3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>◆ Megabus price complaints</button>
+            </div>
+
+            <p class="say" style="margin-top:16px"><em>If you want this to become something rather than stay a thread, I can run a skill on it.</em></p>
+            <div class="offer">
+              <button class="obtn" data-arm="dashboard-builder"><svg><use href="#sk-impact"></use></svg>Dashboard Builder</button>
+              <button class="obtn" data-arm="brief-builder"><svg><use href="#sk-pen"></use></svg>Brief Builder</button>
+              <button class="obtn plain">Keep talking</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           CASE 2 — an Excel RFI in, a response draft out.
+           This is the case that proves skills aren't just the old five
+           stages renamed. Nothing about this work is creative, and the
+           layout doesn't have to change to carry it.
+
+           The honest part is the hold list: a drafting skill that will
+           not invent a rate or a retention figure is the only kind
+           anyone can put in front of a client.
+           ========================================================== -->
+      <section class="thread t-rfi">
+        <div class="wrap">
+          <header class="thead">
+            <div class="k">Amtrak · project</div>
+            <h1>FY27 roster RFI</h1>
+            <p class="sub">Procurement sent the workbook 28 Oct. Response due 14 Nov, 5pm ET.</p>
+          </header>
+
+          <div class="msg me">
+            <div>
+              <div class="mchip">
+                <span class="uchip file"><svg><use href="#ic-file"></use></svg>Amtrak_FY27_RFI.xlsx</span>
+              </div>
+              <div class="bub">Procurement sent this through. What are we dealing with?</div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="agent">
+              <span class="ai">✳</span><b>MekOS</b>
+              <span class="tag">Read 1 file · no skill armed</span>
+            </div>
+            <p class="say">It's an RFI workbook, not a brief. Four tabs, 68 questions, and the deadline is buried on tab 1 rather than in the covering email — 14 Nov, 5pm ET.</p>
+            <p class="say"><em>Most of it we have answered before, in language that's already been through a client's legal team. Twelve questions want figures that live in finance, not in the Library. I'd rather hold those than guess at them.</em></p>
+            <div class="offer">
+              <button class="obtn" data-arm="rfp-decoder,answer-writer"><svg><use href="#sk-pen"></use></svg>Decode and draft the lot</button>
+              <button class="obtn" data-arm="rfp-decoder"><svg><use href="#sk-sheet"></use></svg>Just the gap list</button>
+              <button class="obtn plain">Who else is pitching?</button>
+            </div>
+          </div>
+
+          <div class="msg me">
+            <div>
+              <div class="mchip">
+                <span class="uchip"><svg><use href="#sk-sheet"></use></svg>RFP Decoder</span>
+                <span class="uchip"><svg><use href="#sk-pen"></use></svg>Answer Writer</span>
+              </div>
+              <div class="bub">Draft the whole thing. Flag anything you can't source.</div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="run">
+              <div class="run-top">
+                <span class="g"><svg><use href="#sk-sheet"></use></svg></span>
+                <span class="k">Skill run</span><b>RFP Decoder → Answer Writer</b>
+                <span class="el">2 skills · 2m 04s</span>
+              </div>
+              <div class="run-conn">
+                <span class="cl">Switched on</span>
+                <span class="conn on">Claude Opus 5</span>
+                <span class="conn on">Waldo</span>
+                <span class="conn lit">Excel</span>
+                <span class="conn lit">Library</span>
+              </div>
+              <div class="steps">
+                <div class="step"><span class="tick">✓</span><span class="sx">Parsed <b>Amtrak_FY27_RFI.xlsx</b> — 4 tabs, merged cells, 3 question formats</span><span class="sr">68 Q</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx">Classified: capability 31 · process 18 · people 11 · commercial 8</span><span class="sr">4 types</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx"><b>Library</b> · matched questions to approved prior answers</span><span class="sr">54 / 68</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx"><b>Waldo</b> · matched register to Amtrak's own 2026 procurement language</span><span class="sr">tone set</span></div>
+                <div class="step live"><span class="tick">!</span><span class="sx">Drafted 61. Held 7 — five need a figure, two need a named lead</span><span class="sr">7 held</span></div>
+              </div>
+
+              <div class="art">
+                <div class="art-top"><span class="k">Artifact</span><b>Response draft · FY27 roster RFI</b><span class="ver">v1</span></div>
+
+                <div class="cov">
+                  <div><div class="n">68</div><div class="l">Questions</div></div>
+                  <div><div class="n">61</div><div class="l">Drafted</div></div>
+                  <div><div class="n">54</div><div class="l">From Library</div></div>
+                  <div><div class="n warn">7</div><div class="l">Held</div></div>
+                </div>
+
+                <div class="qa">
+                  <div class="qh"><span class="qn">Q12</span><span class="ty">Capability</span><span class="ok">Drafted</span></div>
+                  <div class="q">Describe how you drive discoverability without paid support.</div>
+                  <p class="a">We treat organic reach as a measured channel rather than a by-product. Every platform ships with a signal model that names the conversations we expect to enter, and we report against reach earned in those conversations weekly — not as a sentiment summary, but as <b>a number next to the idea that caused it</b>.</p>
+                  <div class="cite">Source · Library — Built Bar 2025, Dr Pepper 2026. Both client-approved.</div>
+                </div>
+
+                <div class="qa">
+                  <div class="qh"><span class="qn">Q41</span><span class="ty">People</span><span class="ok">Drafted</span></div>
+                  <div class="q">Name the day-to-day team and their committed availability.</div>
+                  <p class="a">Pulled the six named people already on this workspace with their current allocation. <b>Two of the six are at 100% through December</b> — worth a look before this goes out.</p>
+                  <div class="cite">Source · Context — Team &amp; access, 6 people</div>
+                </div>
+
+                <div class="held">
+                  <div class="hh">7 held — I won't invent these</div>
+                  <ul>
+                    <li><b>Q08</b> Blended hourly rate by discipline — finance owns the FY27 card</li>
+                    <li><b>Q19</b> Three-year client retention figure</li>
+                    <li><b>Q33</b> Named creative lead and committed % availability</li>
+                    <li><b>Q52</b> Cyber insurance limit</li>
+                    <li>+ 3 more commercial figures on tab 4</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="run-acts">
+                <button class="btn pri">Fill the 7 gaps</button>
+                <button class="btn">Open draft</button>
+                <button class="btn gh">Re-draft a tab</button>
+                <span class="mark">
+                  <svg viewBox="0 0 16 16" fill="none"><use href="#ic-file"></use></svg>
+                  Saved to Library
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="msg me">
+            <div>
+              <div class="mchip">
+                <span class="uchip"><svg><use href="#sk-out"></use></svg>Export Pack</span>
+              </div>
+              <div class="bub">Finance sent the numbers over — they're in. Now give it to me in their format.</div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="run">
+              <div class="run-top">
+                <span class="g"><svg><use href="#sk-out"></use></svg></span>
+                <span class="k">Skill run</span><b>Export Pack</b>
+                <span class="el">Response ops · 38s</span>
+              </div>
+              <div class="run-conn">
+                <span class="cl">Switched on</span>
+                <span class="conn on">Claude Opus 5</span>
+                <span class="conn lit">Excel</span>
+                <span class="conn lit">Word</span>
+                <span class="conn lit">Acrobat</span>
+              </div>
+              <div class="steps">
+                <div class="step"><span class="tick">✓</span><span class="sx">Wrote answers back into the client's own tabs — structure, merged cells and dropdowns intact</span><span class="sr">68 / 68</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx">Built the long-form response in Mekanism's template</span><span class="sr">22 pp</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx">Wrote an internal summary — every claim and where it's sourced</span><span class="sr">1 pp</span></div>
+              </div>
+
+              <div class="art">
+                <div class="art-top"><span class="k">Artifact</span><b>Response draft · exported</b><span class="ver">3 files</span></div>
+                <div class="outfiles">
+                  <button class="ofile"><svg><use href="#sk-sheet"></use></svg>Amtrak_FY27_RFI_Mekanism.xlsx <span class="sz">1.3mb</span></button>
+                  <button class="ofile"><svg><use href="#ic-file"></use></svg>Mekanism_FY27_Response.docx <span class="sz">4.8mb</span></button>
+                  <button class="ofile"><svg><use href="#ic-file"></use></svg>Internal_claim_summary.md <span class="sz">12kb</span></button>
+                </div>
+              </div>
+
+              <div class="run-acts">
+                <button class="btn pri">Send to review</button>
+                <button class="btn">Open in Word</button>
+                <span class="mark">
+                  <svg viewBox="0 0 16 16" fill="none"><use href="#ic-file"></use></svg>
+                  Saved to Library
+                </span>
+              </div>
+            </div>
+
+            <p class="say" style="margin-top:16px"><em>Before this leaves the building: fourteen of those answers cite a number. <b>Fact Check</b> re-reads each one against its source and tells you which would survive a follow-up question in the room.</em></p>
+            <div class="offer">
+              <button class="obtn" data-arm="fact-check"><svg><use href="#sk-comply"></use></svg>Run Fact Check</button>
+              <button class="obtn" data-arm="scope-composer"><svg><use href="#sk-sheet"></use></svg>Compose the scope</button>
+              <button class="obtn plain">Send as is</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           CASE 3 — a brief in, a 4C territory out.
+           One skill, one artifact, then a refinement that deliberately
+           produces NO second run card: editing a line isn't a skill call,
+           and the UI shouldn't dress it up as one.
+           ========================================================== -->
+      <section class="thread t-brief">
+        <div class="wrap">
+          <header class="thead">
+            <div class="k">Amtrak · project</div>
+            <h1>Acela relaunch</h1>
+            <p class="sub">Client brief in 9 Oct. 1 skill run, 2 artifacts.</p>
+          </header>
+
+          <div class="msg me">
+            <div>
+              <div class="mchip">
+                <span class="uchip file"><svg><use href="#ic-file"></use></svg>Acela_Brief_Q4.pdf</span>
+                <span class="uchip"><svg><use href="#sk-strat"></use></svg>4Cs Engine</span>
+              </div>
+              <div class="bub">Positioning off this brief.</div>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="agent">
+              <span class="ai">✳</span><b>Strategist Agent</b>
+              <span class="tag">Brief + Context + 4 signals</span>
+            </div>
+            <p class="say">Read it. The brief is clear on the product and vague on the enemy — I've taken that to be the airline shuttle, because the booking data and the live conversation both point there. Say so if that's wrong; everything below moves if it is.</p>
+
+            <div class="run">
+              <div class="run-top">
+                <span class="g"><svg><use href="#sk-strat"></use></svg></span>
+                <span class="k">Skill run</span><b>4Cs Engine</b>
+                <span class="el">Strategist Agent · 54s</span>
+              </div>
+              <div class="run-conn">
+                <span class="cl">Switched on</span>
+                <span class="conn on">Claude Opus 5</span>
+                <span class="conn on">Waldo</span>
+                <span class="conn on">Context</span>
+                <span class="conn lit">GWI</span>
+              </div>
+              <div class="steps">
+                <div class="step"><span class="tick">✓</span><span class="sx">Read <b>Acela_Brief_Q4.pdf</b> — objective, product, constraints</span><span class="sr">14 pp</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx">Pulled Amtrak Context — mission, goals, competitors, voice, compliance</span><span class="sr">92%</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx"><b>Waldo</b> · built the Reluctant Flyer cohort from Corridor travel behaviour</span><span class="sr">4 cohorts</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx"><b>GWI</b> · sized the door-to-door complaint among Corridor flyers</span><span class="sr">n=2,400</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx">Cross-read against the 4 validated signals in this week's pulse</span><span class="sr">4 &#9670;</span></div>
+                <div class="step"><span class="tick">✓</span><span class="sx">Checked every claim against the compliance line in Context</span><span class="sr">no time claims</span></div>
+              </div>
+
+              <div class="art">
+                <div class="art-top"><span class="k">Artifact</span><b>Positioning &#183; 4C</b><span class="ver">v1</span></div>
+                <div class="ns">
+                  <div class="lbl">North star</div>
+                  <div class="line">Time you get to keep.</div>
+                </div>
+                <div class="four">
+                  <div class="c">
+                    <div class="ck"><i>Consumer</i><span>Waldo cohort</span></div>
+                    <p>The Reluctant Flyer has stopped counting flight time and started counting the whole door-to-door day.</p>
+                  </div>
+                  <div class="c">
+                    <div class="ck"><i>Category</i><span>Brief &#183; competitor set</span></div>
+                    <p>Against the airline shuttle, which wins on the timetable, the lane is the hours in transit — not the hours saved.</p>
+                  </div>
+                  <div class="c">
+                    <div class="ck"><i>Company</i><span>Context</span></div>
+                    <p>Acela is the only option where your laptop, your phone and your legroom all work from the moment you sit down.</p>
+                  </div>
+                  <div class="c">
+                    <div class="ck"><i>Culture</i><span>4 validated signals</span></div>
+                    <p>Slow travel stopped being a compromise and became a flex — people film the journey now, not the arrival.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="run-acts">
+                <button class="btn pri" data-arm="platform-writer">Write the platform</button>
+                <button class="btn" data-arm="territory-generator">Straight to territories</button>
+                <button class="btn gh">Refine a C</button>
+                <span class="mark">
+                  <svg viewBox="0 0 16 16" fill="none"><use href="#ic-file"></use></svg>
+                  Saved to Library
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="msg me"><div class="bub">Push the Consumer line harder on the door-to-door reality.</div></div>
+
+          <!-- No run card here on purpose. Editing one line of an artifact is
+               not a skill call, and showing a second run would inflate what
+               actually happened. -->
+          <div class="msg">
+            <div class="agent">
+              <span class="ai">✳</span><b>Strategist Agent</b>
+              <span class="tag">Edited &#183; no new run</span>
+            </div>
+            <p class="say">Redrafted that line only. Everything else is untouched and the card above is now v2.</p>
+            <div class="diff">
+              <div class="d was">The Reluctant Flyer has stopped counting flight time and started counting the whole door-to-door day.</div>
+              <div class="d now">The Reluctant Flyer does the maths nobody at the airline does: two hours early, a security line, a gate, a bag — a 70-minute flight that costs five hours.</div>
+            </div>
+
+            <p class="say" style="margin-top:16px"><em>One thing to settle before anyone concepts this: the promise only survives on the Corridor. On long-distance routes the hours aren't the selling point, the view is. Decide now whether this is an Acela platform or a brand platform — I can run the 4Cs again brand-wide and put the two side by side.</em></p>
+            <div class="offer">
+              <button class="obtn" data-arm="platform-writer"><svg><use href="#sk-concept"></use></svg>Platform Writer</button>
+              <button class="obtn" data-arm="4cs-engine"><svg><use href="#sk-strat"></use></svg>4Cs again, brand-wide</button>
+              <button class="obtn" data-arm="scope-composer"><svg><use href="#sk-sheet"></use></svg>Scope the Acela cut</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ---------- COMPOSER ----------
+         In B this is the control surface, not just an input. Skills arm here,
+         files attach here, and the strip underneath says what is actually
+         wired up at this moment. -->
+    <div class="composer">
+      <div class="cwrap">
+
+        <!-- the skill menu, opening upward -->
+        <div class="skmenu" id="skmenu" role="menu" aria-label="Skills and actions">
+          <div class="skm-find">
+            <svg viewBox="0 0 16 16" fill="none"><circle cx="7.2" cy="7.2" r="4.4" stroke="currentColor" stroke-width="1.5"/><path d="M10.6 10.6 13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <input id="skq" placeholder="Search skills and actions…" />
+          </div>
+
+          <!-- Recipes are the shortest path for the 80% of work that is the
+               same shape every time. Each one just pre-arms a set of skills —
+               it is editable, and it is not a pipeline. -->
+          <div class="skm-recipes">
+            <span class="rl">Recipes</span>
+            <button class="rcp" data-recipe="rfp-decoder,scope-composer,project-setup">New business response</button>
+            <button class="rcp" data-recipe="research-digest,brief-builder,4cs-engine,platform-writer">Brief &#8594; platform</button>
+            <button class="rcp" data-recipe="territory-generator,versioning-matrix,static-graphics,motion-graphics">Platform &#8594; assets</button>
+            <button class="rcp" data-recipe="comms-planner,dashboard-builder,wrap-report">Launch &#8594; learn</button>
+          </div>
+
+          <!-- rendered from CATALOG so the list can grow without touching markup -->
+          <div class="skm-body" id="skbody"></div>
+
+          <div class="skm-foot">
+            <span class="n" id="skm-n">No skills armed — just ask a question</span>
+            <a href="#" class="lnk" data-nav-link="skills">Manage skills →</a>
+          </div>
+        </div>
+
+        <div class="cbox">
+          <!-- armed skills and files sit here as chips, like attachments -->
+          <div class="armed" id="armed"></div>
+
+          <textarea class="cta-in" rows="1" placeholder="Ask anything, or arm a skill with /"></textarea>
+
+          <div class="crow">
+            <button class="cpill skills" id="sk-btn" aria-expanded="false" aria-controls="skmenu">
+              <svg viewBox="0 0 16 16" fill="none"><use href="#sk-plus"></use></svg>
+              <b>Skills</b>
+              <kbd>/</kbd>
+            </button>
+            <button class="cpill" id="scope-pill">
+              <img src="assets/clients/amtrak.png" alt="" onerror="this.style.display='none'">
+              <b id="scope-txt">Acela relaunch</b>
+              <svg viewBox="0 0 16 16" fill="none"><path d="M4.5 6.5 8 10l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="cpill" title="Model">
+              <b>Claude Opus 5</b>
+              <svg viewBox="0 0 16 16" fill="none"><path d="M4.5 6.5 8 10l3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="send" aria-label="Send">
+              <svg viewBox="0 0 16 16" fill="none"><path d="M8 12.8V3.6M4.4 7.2 8 3.6l3.6 3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- what's wired right now. Two always-on, the rest arrive with a skill. -->
+      <div class="grail" id="grail">
+        <span class="gl">Always on</span>
+        <span class="conn on">Claude Opus 5</span>
+        <span class="conn on">Waldo</span>
+        <span class="conn on">Context</span>
+        <span class="sep" id="grail-sep" hidden></span>
+        <span class="gl" id="grail-lbl" hidden>Armed</span>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  /* ============================================================
+     MOCK ONLY — version B.
+     Three things are live: the state switch (as in A), the skill menu, and
+     the connector strip that reacts to whatever is armed. Everything else
+     is static markup.
+     ============================================================ */
+
+  /* ============================================================
+     THE CATALOGUE — one array, rendered into both the composer menu and
+     the Skills page, so the two can never drift apart. Adding a skill is
+     adding a row here; no markup changes.
+
+     Every skill declares four things, and all four earn their place:
+       needs  — what must already exist for it to run. Drives the "Ready
+                now" group, which is what keeps 27 skills feeling like 5.
+       gives  — what you get back, named. People search for the output
+                ("territories") far more often than the skill name.
+       mode   — 'run' fires once; 'watch' is an agent that keeps running.
+                Mixing those two in one list is the fastest way to confuse
+                someone, so the UI separates them.
+       conn   — what switches on, so nobody is surprised by a connector.
+     ============================================================ */
+  var PHASES=[
+    {id:'mission', n:'1 · Mission', d:'Work out what we are actually solving'},
+    {id:'make',    n:'2 · Make',    d:'Turn the thinking into things'},
+    {id:'moments', n:'3 · Moments', d:'Decide when and where it lands'},
+    {id:'multiply',n:'4 · Multiply',d:'Spread it, test it, read it back'},
+    {id:'ops',     n:'Operations',  d:'Runs alongside the work, not after it'}
+  ];
+
+  var CATALOG=[
+    /* ---------- 1 · MISSION ---------- */
+    {k:'rfp-decoder', n:'RFP Decoder', p:'mission', g:'sk-sheet', ag:'Research Agent',
+     d:'Reads an RFP or RFI however it is built — four tabs, merged cells, three question formats — and returns what is actually being asked.',
+     needs:['rfp'], gives:'Question map', conn:['Excel','Acrobat']},
+    {k:'research-digest', n:'Research Digest', p:'mission', g:'sk-brief', ag:'Research Agent',
+     d:'Collapses decks, transcripts, reports and data into what is known, what is assumed and what is missing.',
+     needs:['files'], gives:'Digest', conn:['Waldo','Acrobat']},
+    {k:'brief-builder', n:'Brief Builder', p:'mission', g:'sk-pen', ag:'Research Agent',
+     d:'Turns a digest or a conversation into a brief: audience, problem, proof, constraints. Names the gaps instead of filling them.',
+     needs:[], gives:'Brief', conn:['Waldo']},
+    {k:'4cs-engine', n:'4Cs Engine', p:'mission', g:'sk-strat', ag:'Strategist Agent',
+     d:'Consumer, Category, Company and Culture under one north star, built off the brief and this week&rsquo;s validated signals.',
+     needs:['brief'], gives:'Positioning', conn:['Waldo','GWI']},
+    {k:'platform-writer', n:'Platform Writer', p:'mission', g:'sk-concept', ag:'Strategist Agent',
+     d:'Turns a positioning into a platform line people can actually make work from — short enough to remember, specific enough to brief.',
+     needs:['positioning'], gives:'Platform', conn:['Waldo']},
+
+    /* ---------- 2 · MAKE ---------- */
+    {k:'territory-generator', n:'Territory Generator', p:'make', g:'sk-concept', ag:'Concept Agent',
+     d:'Expands a platform into named creative territories, each with a virality read and the signal it is riding.',
+     needs:['platform'], gives:'Territories', conn:['Signal pulse']},
+    {k:'tissue-prep', n:'Tissue Prep', p:'make', g:'sk-brief', ag:'Concept Agent',
+     d:'Assembles the tissue session: what we are testing, what we are deliberately not, and the questions we want the room to answer.',
+     needs:['territories'], gives:'Tissue deck', conn:['Slides']},
+    {k:'production-estimator', n:'Production Estimator', p:'make', g:'sk-cost', ag:'Production Agent',
+     d:'Ranges a territory into cost and time by asset type, using the live rate card rather than last year&rsquo;s.',
+     needs:['territories'], gives:'Estimate', conn:['Rate card','Sheets']},
+    {k:'versioning-matrix', n:'Versioning Matrix', p:'make', g:'sk-sheet', ag:'Production Agent',
+     d:'Every cut, ratio, locale and platform spec an idea needs, as a grid you can hand to a producer.',
+     needs:['territories'], gives:'Matrix', conn:['Sheets']},
+    {k:'static-graphics', n:'Static Graphics', p:'make', g:'sk-img', ag:'Production Agent',
+     d:'Key visuals and stills, generated against the brand book rather than against a vibe.',
+     needs:['territories'], gives:'Stills', conn:['Adobe Firefly','Magnific']},
+    {k:'motion-graphics', n:'Motion Graphics', p:'make', g:'sk-prod', ag:'Production Agent',
+     d:'Motion, animatics and cutdowns to the versioning matrix, with voice where the script needs it.',
+     needs:['matrix'], gives:'Motion', conn:['Higgsfield','Adobe Express','ElevenLabs']},
+    {k:'custom-model', n:'Custom Model', p:'make', g:'sk-sim', ag:'Production Agent',
+     d:'Trains a model on a client&rsquo;s own library so everything made afterwards looks like them. Set up once per client, not per project.',
+     needs:['asset library'], gives:'Model', conn:['Higgsfield','Adobe Firefly']},
+
+    /* ---------- 3 · MOMENTS ---------- */
+    {k:'comms-planner', n:'Comms Planner', p:'moments', g:'sk-cal', ag:'Strategist Agent',
+     d:'The calendar: what goes where, when, and why that order rather than another.',
+     needs:['platform'], gives:'Comms plan', conn:['Sprout Social','Sheets']},
+    {k:'culture-radar', n:'Culture Radar', p:'moments', g:'sk-radar', ag:'Signal Agent', mode:'watch',
+     d:'Stands watch on the conversations this brand should be in and tells you when one moves. Feeds the Signal pulse.',
+     needs:[], gives:'Live signals', conn:['Apify','Sprout Social','Google Trends']},
+    {k:'acts-engine', n:'Acts Engine', p:'moments', g:'sk-bolt', ag:'Concept Agent',
+     d:'Turns a platform into things the brand can do rather than say — acts with a cost, an owner and a reason to exist.',
+     needs:['platform'], gives:'Acts', conn:['Signal pulse']},
+
+    /* ---------- 4 · MULTIPLY ---------- */
+    {k:'creator-finder', n:'Creator Finder', p:'multiply', g:'sk-creator', ag:'Partnerships',
+     d:'Creators already making the thing the platform describes, with authenticity and audience-overlap checks.',
+     needs:['platform'], gives:'Creator list', conn:['Apify','Sprout Social']},
+    {k:'outreach-kit', n:'Outreach Kit', p:'multiply', g:'sk-out', ag:'Partnerships',
+     d:'The approach, the terms and the first message — written per creator, not pasted.',
+     needs:['creator list'], gives:'Outreach', conn:['Sheets','Gmail']},
+    {k:'creator-briefs', n:'Creator Briefs', p:'multiply', g:'sk-pen', ag:'Partnerships',
+     d:'A brief per creator, in their voice and their format, with the one thing we actually need them to land.',
+     needs:['creator list'], gives:'Briefs', conn:['Waldo']},
+    {k:'ad-testing', n:'Ad Testing', p:'multiply', g:'sk-sim', ag:'Measurement Agent',
+     d:'Puts cuts in front of a synthetic panel before spend and reports which lands, which confuses, and why.',
+     needs:['assets'], gives:'Test read', conn:['Brand Intel','Meta Ads']},
+    {k:'dashboard-builder', n:'Dashboard Builder', p:'multiply', g:'sk-impact', ag:'Measurement Agent',
+     d:'A live read on the thing we actually promised — not the metrics the platforms hand out by default.',
+     needs:['comms plan'], gives:'Dashboard', conn:['GA4','Sprout Social','Meta Ads']},
+    {k:'wrap-report', n:'Wrap Report', p:'multiply', g:'sk-brief', ag:'Measurement Agent',
+     d:'What happened, why it happened, and what the next brief should start from. Writes back into Context.',
+     needs:['dashboard'], gives:'Wrap', conn:['GA4','Sprout Social']},
+
+    /* ---------- OPERATIONS ---------- */
+    {k:'scope-composer', n:'Scope Composer', p:'ops', g:'sk-sheet', ag:'Operations',
+     d:'Scope, deliverables, assumptions and — the part people forget — exclusions, priced off the live rate card.',
+     needs:[], gives:'Scope', conn:['Rate card','Docs']},
+    {k:'project-setup', n:'Project Setup', p:'ops', g:'sk-cal', ag:'Operations',
+     d:'Spins the project up: team, channels, folders, milestones, and the skills this kind of work usually needs.',
+     needs:['scope'], gives:'Project', conn:['Slack','Drive','Calendar']},
+    {k:'pm-agent', n:'PM Agent', p:'ops', g:'sk-comply', ag:'Operations', mode:'watch',
+     d:'Keeps the plan honest while you work: chases what is late, flags what is blocked, updates status without being asked.',
+     needs:[], gives:'Status', conn:['Slack','Calendar']},
+
+    /* ---------- added because the work demanded it ----------
+       Not on the original list. The RFI case needed a drafter, a checker
+       and an exporter, and the catalogue is supposed to grow that way. */
+    {k:'answer-writer', n:'Answer Writer', p:'ops', g:'sk-pen', ag:'Response ops', added:1,
+     d:'Drafts each RFP answer from approved prior responses in the Library. Holds anything it cannot source rather than inventing it.',
+     needs:['rfp'], gives:'Answers', conn:['Library','Waldo']},
+    {k:'fact-check', n:'Fact Check', p:'ops', g:'sk-comply', ag:'Review', added:1,
+     d:'Re-reads every claim that cites a number against its source and says which would survive a follow-up question.',
+     needs:['answers'], gives:'Check', conn:['Library','Brand Intel']},
+    {k:'export-pack', n:'Export Pack', p:'ops', g:'sk-out', ag:'Response ops', added:1,
+     d:'Writes answers back into the client&rsquo;s own workbook with its structure intact, plus a Word doc and an internal claim summary.',
+     needs:['answers'], gives:'Files', conn:['Excel','Word','Acrobat']},
+
+    /* an attachment behaves like a skill chip, so it lives here too */
+    {k:'file', n:'Acela_Brief_Q4.pdf', p:'ops', g:'ic-file', conn:[], needs:[], isFile:1, hidden:1}
+  ];
+
+  /* lookup by key, for the chip and connector code */
+  var SKILLS={};
+  CATALOG.forEach(function(s){ SKILLS[s.k]={name:s.n,g:s.g,conn:s.conn||[],isFile:s.isFile,mode:s.mode}; });
+
+  /* What each surface already holds. This is the whole trick behind
+     "Ready now": a skill is ready when everything it needs is here. */
+  var HAS={
+    home:    [],
+    overview:['context','signals','files'],
+    skills:  ['context','signals','files'],
+    signals: ['context','signals'],
+    chat:    ['context','signals','files'],
+    rfi:     ['rfp','files','answers'],
+    brief:   ['brief','files','context','signals','positioning']
+  };
+  var here='home';
+  function ready(s){
+    if(!s.needs||!s.needs.length) return true;
+    var have=HAS[here]||[];
+    return s.needs.every(function(n){ return have.indexOf(n)>-1; });
+  }
+
+  var armed=[];                     /* skills armed on this message, in order */
+  var watching=['culture-radar'];   /* agents left running — a different gesture */
+  var armedEl=document.getElementById('armed');
+  var menuEl=document.getElementById('skmenu');
+  var btnEl=document.getElementById('sk-btn');
+
+  function svgUse(id){ return '<svg><use href="#'+id+'"></use></svg>'; }
+
+  /* chips above the input, one per armed skill */
+  function drawArmed(){
+    armedEl.innerHTML=armed.map(function(k){
+      var s=SKILLS[k];
+      return '<span class="achip'+(s.isFile?' file':'')+'">'+
+        '<svg class="i"><use href="#'+s.g+'"></use></svg>'+s.name+
+        '<button class="x" data-unarm="'+k+'" aria-label="Remove '+s.name+'">'+
+        '<svg><use href="#ic-x"></use></svg></button></span>';
+    }).join('');
+  }
+
+  /* the strip under the composer: always-on connectors, then whatever the
+     armed skills just switched on. De-duplicated — two skills can share a
+     connector and it should light once. */
+  function drawRail(){
+    var rail=document.getElementById('grail');
+    var sep=document.getElementById('grail-sep'), lbl=document.getElementById('grail-lbl');
+    Array.prototype.slice.call(rail.querySelectorAll('.conn.lit')).forEach(function(n){n.remove();});
+
+    var seen={}, lit=[];
+    armed.forEach(function(k){
+      SKILLS[k].conn.forEach(function(c){ if(!seen[c]){ seen[c]=1; lit.push(c); } });
+    });
+    sep.hidden=lbl.hidden=!lit.length;
+    lit.forEach(function(c){
+      var s=document.createElement('span'); s.className='conn lit'; s.textContent=c;
+      rail.appendChild(s);
+    });
+  }
+
+  function drawFoot(){
+    var n=document.getElementById('skm-n');
+    var real=armed.filter(function(k){return !SKILLS[k].isFile;}).length;
+    var w=watching.length ? ' · <b>'+watching.length+'</b> agent'+(watching.length>1?'s':'')+' watching' : '';
+    n.innerHTML = (real
+      ? '<b>'+real+'</b> skill'+(real>1?'s':'')+' armed — they run in the order you added them'
+      : 'No skills armed — just ask a question') + w;
+  }
+
+  /* ---- the menu ----
+     Three decisions encoded here:
+     1. "Ready now" is pinned first. With 27 skills the question is never
+        "what exists", it's "what can I call from where I'm standing".
+     2. Always-watching agents get their own group and a toggle, because a
+        thing that runs for six weeks is not the same gesture as a thing
+        that runs for 54 seconds.
+     3. A skill that isn't ready still appears — greyed, with the input it
+        wants. Hiding it would make the catalogue feel broken. */
+  function row(s){
+    var on=armed.indexOf(s.k)>-1, w=s.mode==='watch', rdy=ready(s);
+    return '<button class="skm-row'+(on?' sel':'')+(!rdy&&!w?' wait':'')+'" data-sk="'+s.k+'">'+
+      '<span class="g"><svg><use href="#'+s.g+'"></use></svg></span>'+
+      '<span class="bd">'+
+        '<span class="nm"><b>'+s.n+'</b><span class="ag">'+(s.ag||'')+'</span></span>'+
+        '<span class="ds">'+s.d+'</span>'+
+        '<span class="cl">'+
+          (s.gives?'<span class="gives">&#8594; '+s.gives+'</span>':'')+
+          (!rdy&&!w?'<span class="need">needs '+s.needs.join(' + ')+'</span>':'')+
+          (s.conn||[]).map(function(c){
+            return '<span class="conn '+(c==='Waldo'||c==='Context'?'on':'lit')+'">'+c+'</span>'; }).join('')+
+        '</span>'+
+      '</span>'+
+      (w?'<span class="tog"></span>':'<span class="chk">&#10003;</span>')+
+    '</button>';
+  }
+  function grp(label,count){
+    return '<div class="skm-grp">'+label+(count?'<span class="ct">'+count+'</span>':'')+'</div>';
+  }
+  function drawMenu(){
+    var runnable=CATALOG.filter(function(s){ return !s.hidden&&s.mode!=='watch'; });
+    var watchers=CATALOG.filter(function(s){ return !s.hidden&&s.mode==='watch'; });
+    var rdy=runnable.filter(ready), rest=runnable.filter(function(s){ return !ready(s); });
+
+    var h='';
+    if(rdy.length) h+=grp('Ready now',rdy.length)+rdy.map(row).join('');
+    if(watchers.length) h+=grp('Always watching',watchers.length)+watchers.map(row).join('');
+    /* the rest stay grouped by phase, because that's how the team already
+       talks about the work — the groups are labels, never gates */
+    PHASES.forEach(function(ph){
+      var inPh=rest.filter(function(s){ return s.p===ph.id; });
+      if(inPh.length) h+=grp(ph.n,inPh.length)+inPh.map(row).join('');
+    });
+    h+='<button class="skm-row add"><span class="g"><svg><use href="#sk-plus"></use></svg></span>'+
+       '<span class="bd"><span class="nm"><b>Build a new skill</b><span class="ag">Workspace</span></span>'+
+       '<span class="ds">Wrap a prompt, a connector and a house standard into something callable by name.</span></span></button>';
+    document.getElementById('skbody').innerHTML=h;
+    Array.prototype.forEach.call(document.querySelectorAll('#skbody [data-sk]'),function(r){
+      if(watching.indexOf(r.getAttribute('data-sk'))>-1) r.classList.add('watching');
+    });
+    filterMenu();
+  }
+
+  /* ---- the Skills page ----
+     Same data, read rather than called. Grouped strictly by the four phases
+     the team already uses, so the page teaches the map and the menu does
+     the work. */
+  function drawPage(){
+    var el=document.getElementById('skpage'); if(!el) return;
+    var h='';
+    PHASES.forEach(function(ph){
+      var inPh=CATALOG.filter(function(s){ return s.p===ph.id&&!s.hidden; });
+      if(!inPh.length) return;
+      h+='<div class="tgrp'+(ph.id==='mission'?' val':'')+'" style="margin-bottom:4px">'+ph.n+'</div>'+
+         '<p class="ph-d">'+ph.d+'</p><div class="sk-grid">'+
+        inPh.map(function(s){
+          return '<button class="scard'+(s.mode==='watch'?' wat':'')+'">'+
+            '<div class="top"><span class="g"><svg><use href="#'+s.g+'"></use></svg></span>'+
+            '<b>'+s.n+'</b><span class="ag">'+(s.ag||'')+'</span></div>'+
+            '<p>'+s.d+'</p>'+
+            '<div class="cl">'+
+              (s.mode==='watch'?'<span class="conn lit">Always on</span>':'')+
+              (s.gives?'<span class="gives">&#8594; '+s.gives+'</span>':'')+
+              (s.needs&&s.needs.length?'<span class="need">needs '+s.needs.join(' + ')+'</span>':'')+
+              (s.conn||[]).map(function(c){
+                return '<span class="conn '+(c==='Waldo'||c==='Context'?'on':'lit')+'">'+c+'</span>'; }).join('')+
+            '</div>'+
+            (s.added?'<div class="addedby">Added by the team — not on the original list</div>':'')+
+          '</button>';
+        }).join('')+'</div>';
+    });
+    el.innerHTML=h;
+  }
+
+  function sync(){ drawArmed(); drawRail(); drawFoot(); drawMenu(); }
+
+  function arm(k){
+    var s=SKILLS[k]; if(!s) return;
+    /* a watching agent toggles rather than queues — it isn't part of this
+       message, it's part of the project */
+    if(s.mode==='watch'){
+      var j=watching.indexOf(k);
+      if(j>-1) watching.splice(j,1); else watching.push(k);
+      sync(); return;
+    }
+    var i=armed.indexOf(k);
+    if(i>-1) armed.splice(i,1); else armed.push(k);
+    sync();
+  }
+
+  /* search matches the name, what it does AND what it gives back — people
+     look for "territories" far more often than "Territory Generator" */
+  function filterMenu(){
+    var box=document.getElementById('skq'); if(!box) return;
+    var q=box.value.toLowerCase().trim();
+    Array.prototype.forEach.call(document.querySelectorAll('#skbody .skm-row'),function(r){
+      r.style.display = !q || r.textContent.toLowerCase().indexOf(q)>-1 ? '' : 'none';
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#skbody .skm-grp'),function(g){
+      g.style.display = q ? 'none' : '';
+    });
+  }
+
+  function openMenu(open){
+    menuEl.classList.toggle('open',open);
+    btnEl.classList.toggle('open',open);
+    btnEl.setAttribute('aria-expanded',open?'true':'false');
+    if(open) document.getElementById('skq').focus();
+  }
+
+  btnEl.addEventListener('click',function(e){
+    e.stopPropagation(); openMenu(!menuEl.classList.contains('open'));
+  });
+  /* the menu stays open while you pick, so several skills can be armed in
+     one pass — the point of the model is that work takes more than one */
+  menuEl.addEventListener('click',function(e){
+    e.stopPropagation();
+    var rec=e.target.closest('[data-recipe]');
+    if(rec){
+      /* a recipe arms its set and leaves it editable — remove one, add
+         another. It is a starting point, not a pipeline. */
+      rec.getAttribute('data-recipe').split(',').forEach(function(k){
+        if(SKILLS[k]&&armed.indexOf(k)<0) armed.push(k);
+      });
+      sync(); return;
+    }
+    var row=e.target.closest('[data-sk]');
+    if(row) arm(row.getAttribute('data-sk'));
+  });
+  document.addEventListener('click',function(){ openMenu(false); });
+
+  /* remove a chip */
+  armedEl.addEventListener('click',function(e){
+    var x=e.target.closest('[data-unarm]');
+    if(x){ e.stopPropagation(); arm(x.getAttribute('data-unarm')); }
+  });
+
+  /* "/" opens the menu from an empty input, the way a slash command would */
+  var ta=document.querySelector('.cta-in');
+  ta.addEventListener('keydown',function(e){
+    if(e.key==='/'&&!ta.value){ e.preventDefault(); openMenu(true); }
+    if(e.key==='Escape') openMenu(false);
+  });
+  ta.addEventListener('input',function(){
+    ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,200)+'px';
+  });
+
+  document.getElementById('skq').addEventListener('input',filterMenu);
+
+  /* every "run this next" button in the thread arms the skill it names and
+     drops you in the composer — the suggestion is a shortcut, not a command */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-arm]'),function(b){
+    b.addEventListener('click',function(){
+      b.getAttribute('data-arm').split(',').forEach(function(k){
+        if(SKILLS[k]&&armed.indexOf(k)<0) armed.push(k);
+      });
+      sync(); ta.focus();
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-open-skills]'),function(b){
+    b.addEventListener('click',function(e){ e.stopPropagation(); openMenu(true); });
+  });
+
+  /* ---- state switch, as in version A ---- */
+  var SCOPE={
+    home:    {pill:'Choose a client',  logo:false, ph:'Ask anything, or arm a skill with /'},
+    overview:{pill:'Amtrak',           logo:true,  ph:'Ask about Amtrak, or arm a skill with /'},
+    skills:  {pill:'Amtrak · Skills',  logo:true,  ph:'Ask what a skill does, or arm one with /'},
+    signals: {pill:'Amtrak · Signals', logo:true,  ph:'Re-rank the pulse, or run a skill on a trend'},
+    /* the three cases. Note the chat scopes to the client, not a project —
+       the composer has to say so, or you can't tell where an answer lands. */
+    chat:    {pill:'Amtrak · chat',    logo:true,  ph:'Keep asking — or arm a skill with /'},
+    rfi:     {pill:'FY27 roster RFI',  logo:true,  ph:'Ask about the RFI, or arm a skill with /'},
+    brief:   {pill:'Acela relaunch',   logo:true,  ph:'Ask anything, or arm a skill with /'}
+  };
+  var THREADY={chat:1,rfi:1,brief:1};
+  function syncNav(s){
+    var side=document.querySelector('.side-client'); if(!side) return;
+    Array.prototype.forEach.call(side.querySelectorAll('.sub,.chat,.pcard'),function(el){
+      el.classList.remove('on'); el.removeAttribute('aria-current');
+    });
+    var hit=side.querySelector('[data-nav="'+s+'"]');
+    if(hit){ hit.classList.add('on'); hit.setAttribute('aria-current','page'); }
+  }
+  function setState(s){
+    document.body.className='state-'+s;
+    /* where you stand decides what's ready, so the menu is rebuilt on every
+       move rather than filtered after the fact */
+    here=s; drawMenu();
+    syncNav(s);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-go]'),function(b){
+      b.classList.toggle('on', b.getAttribute('data-go')===s);
+    });
+    var c=SCOPE[s];
+    document.getElementById('scope-txt').textContent=c.pill;
+    document.getElementById('scope-pill').querySelector('img').style.display=c.logo?'':'none';
+    ta.placeholder=c.ph;
+    document.querySelector('.scroll').scrollTop = THREADY[s] ? 9e5 : 0;
+    openMenu(false);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-go]'),function(b){
+    b.addEventListener('click',function(){ setState(b.getAttribute('data-go')); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-enter]'),function(b){
+    b.addEventListener('click',function(){ setState('overview'); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-exit]'),function(b){
+    b.addEventListener('click',function(){ setState('home'); });
+  });
+  /* only items with a surface behind them navigate; the rest stay inert */
+  var REAL={overview:1,signals:1,skills:1,chat:1,rfi:1,brief:1};
+  Array.prototype.forEach.call(document.querySelectorAll('.side-client [data-nav]'),function(el){
+    var go=el.getAttribute('data-nav');
+    if(REAL[go]) el.addEventListener('click',function(){ setState(go); });
+  });
+  /* project cards and overview rows both say which case they open */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-go-card]'),function(el){
+    el.addEventListener('click',function(){ setState(el.getAttribute('data-go-card')); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-nav-link]'),function(el){
+    el.addEventListener('click',function(e){ e.preventDefault(); setState(el.getAttribute('data-nav-link')); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-exit-proj]'),function(b){
+    b.addEventListener('click',function(){ setState('overview'); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-feed]'),function(b){
+    b.addEventListener('click',function(){ setState(b.getAttribute('data-feed')); });
+  });
+
+  drawPage();
+  sync();
+  setState('home');
+
+  document.getElementById('theme').addEventListener('click',function(){
+    var r=document.documentElement, next=r.getAttribute('data-theme')==='dark'?'light':'dark';
+    r.setAttribute('data-theme',next);
+    try{localStorage.setItem('mekos-theme',next);}catch(e){}
+  });
+</script>
+</body>
+</html>

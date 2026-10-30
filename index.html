@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MekOS — Projects, version C (demo cut)</title>
+  <script>(function(){try{var t=localStorage.getItem('mekos-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ===========================================================
+       VERSION C — the same model as B, cut for a room.
+
+       B is right and B is too much. Watching someone meet it cold, the
+       things that cost attention were never the idea — they were the
+       furniture around it: a mock switcher that looks like product, five
+       lines per skill row, connector chips in four places at once, seven
+       sections in a sidebar, six steps printed on every run card.
+
+       C changes nothing about how the thing works. It changes what is
+       loud. Four moves:
+
+       1. NO DEMO CHROME. Navigation is real — click a client, click a
+          project, click a thread. The three scenarios are three threads
+          in the sidebar, where threads already live. Nothing to explain
+          before you can start explaining.
+       2. THE ARTIFACT IS THE HERO. Run cards collapse their steps behind
+          one summary line. The receipts are still there, one click down,
+          for the person who asks "but how do you know".
+       3. ONE SKILL ROW, ONE LINE. Name and what it gives you. The agent
+          name, the connectors and the input list moved to the Skills
+          page, which is where you go to study rather than to act.
+       4. SIX, NOT TWENTY-SEVEN. The menu opens on what can run right now.
+          All 27 are one click away and grouped as before.
+
+       Content is hard-coded Amtrak work written off CTX_PROFILE.amtrak.
+       Tokens lifted verbatim from project.html.
+       =========================================================== */
+    :root{
+      --bg:#f7f4ec; --fg:#17150f; --muted:#6b6656; --faint:#9a9483;
+      --line:rgba(23,21,15,.12); --line-2:rgba(23,21,15,.20);
+      --card:#fffdf7; --card-2:#efeade;
+      --accent:#0b9ca2; --accent-fg:#ffffff; --accent-2:#c6167f;
+      --accent-soft:rgba(11,156,162,.12); --accent-2-soft:rgba(198,22,127,.10);
+      --rail:#f1ece1;
+      --shadow-sm:0 12px 30px -18px rgba(23,21,15,.26);
+      --shadow-lg:0 26px 60px -26px rgba(23,21,15,.42);
+      --ease:cubic-bezier(.22,1,.36,1);
+      --radius:4px; --radius-lg:7px;
+      --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      --mono:"Geist Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+    [data-theme="dark"]{
+      --bg:#262D2D; --fg:#eef2f1; --muted:#98a4a4; --faint:#606b6b;
+      --line:rgba(230,240,240,.12); --line-2:rgba(230,240,240,.22);
+      --card:#141e20; --card-2:#1b2629;
+      --accent:#2ee0e6; --accent-fg:#06181a; --accent-2:#ec1a86;
+      --accent-soft:rgba(46,224,230,.14); --accent-2-soft:rgba(236,26,134,.14);
+      --rail:#1e2626;
+      --shadow-sm:0 12px 30px -18px rgba(0,0,0,.75);
+      --shadow-lg:0 26px 60px -26px rgba(0,0,0,.85);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{height:100dvh;overflow:hidden;background:var(--bg);color:var(--fg);
+      font-family:var(--font);font-size:15px;-webkit-font-smoothing:antialiased}
+    a{color:inherit;text-decoration:none}
+    button{font-family:inherit;color:inherit;cursor:pointer;background:transparent;border:none}
+    :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+    ::-webkit-scrollbar{width:9px;height:9px}
+    ::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:9px}
+    details summary::-webkit-details-marker{display:none}
+
+    .app{display:grid;grid-template-columns:270px 1fr;height:100dvh}
+
+    /* ================= SIDEBAR =================
+       Three modes, same as B — but each one holds less. The project mode
+       in particular lost four sections; what a demo audience needs from
+       it is "where am I and what else is in here", not an inventory. */
+    .side{background:var(--rail);border-right:1px solid var(--line);
+      display:flex;flex-direction:column;min-height:0}
+    .mode{display:none;flex:1;flex-direction:column;min-height:0}
+    body.s-home .m-home{display:flex}
+    body.s-client .m-client{display:flex}
+    body.s-project .m-project{display:flex}
+    /* Skills is a workspace destination, so it doesn't own a sidebar. It
+       keeps whichever one you were already in — the sidebar IS the way
+       back, which is why the page needs no breadcrumb. */
+    body.s-skills.from-home .m-home,body.s-conn.from-home .m-home{display:flex}
+    body.s-skills.from-client .m-client,body.s-conn.from-client .m-client{display:flex}
+    body.s-skills.from-project .m-project,body.s-conn.from-project .m-project{display:flex}
+
+    .s-work{border-top:1px solid var(--line);padding:7px 10px}
+
+    .s-top{padding:18px 16px 12px;display:grid;gap:12px}
+    .logo{display:block;width:auto;height:23px;color:var(--fg)}
+    .s-scroll{flex:1;overflow-y:auto;padding:0 10px 16px;min-height:0}
+
+    .newbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+      padding:10px 14px;border-radius:var(--radius-lg);background:var(--accent);
+      color:var(--accent-fg);font-size:14px;font-weight:600;transition:filter .18s var(--ease)}
+    .newbtn:hover{filter:brightness(1.07)}
+    .newbtn svg{width:15px;height:15px;flex:none}
+
+    .lbl{padding:16px 10px 6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;
+      text-transform:uppercase;color:var(--faint)}
+
+    /* one row style for every list in the sidebar, so the eye learns it once */
+    .row{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;
+      border-radius:var(--radius-lg);font-size:14px;color:var(--muted);text-align:left;
+      transition:background .15s,color .15s}
+    .row:hover{background:var(--card-2);color:var(--fg)}
+    .row.on{background:var(--accent-soft);color:var(--fg);font-weight:600}
+    .row img{width:21px;height:21px;border-radius:50%;object-fit:contain;background:#fff;
+      border:1px solid var(--line);flex:none}
+    .row svg{width:15px;height:15px;flex:none;opacity:.65}
+    .row.on svg{opacity:1;color:var(--accent)}
+    .row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+    .row .ct{font-family:var(--mono);font-size:10px;color:var(--faint);flex:none}
+    .row.on .ct{color:var(--accent)}
+    .row .dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--line-2)}
+    .row.on .dot{background:var(--accent)}
+
+    .back{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);
+      padding:2px 0;align-self:start;transition:color .15s}
+    .back:hover{color:var(--fg)}
+    .back svg{width:13px;height:13px;transition:transform .2s var(--ease)}
+    .back:hover svg{transform:translateX(-2px)}
+
+    .ws img{width:27px;height:27px;border-radius:50%;object-fit:contain;background:#fff;
+      border:1px solid var(--line);flex:none}
+    .ws b{font-size:16.5px;font-weight:600;letter-spacing:-.01em;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+    /* project card — name, and the one fact worth knowing at a glance */
+    .pcard{display:block;width:100%;text-align:left;padding:11px 13px;margin-bottom:7px;
+      border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--card);
+      transition:border-color .16s,transform .16s var(--ease)}
+    .pcard:hover{border-color:var(--accent);transform:translateY(-1px)}
+    .pcard b{display:block;font-size:14px;font-weight:600;margin-bottom:4px;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pcard span{font-size:12px;color:var(--faint)}
+
+    /* project head */
+    .ph{padding:2px 2px 0}
+    .ph h2{font-size:18px;font-weight:600;letter-spacing:-.015em;line-height:1.2}
+    .ph span{display:block;font-size:12.5px;color:var(--faint);margin-top:4px}
+
+    .s-foot{border-top:1px solid var(--line);padding:11px 14px;display:flex;align-items:center;gap:10px}
+    .av{width:28px;height:28px;border-radius:50%;flex:none;display:grid;place-items:center;
+      background:var(--accent-2);color:#fff;font-size:11px;font-weight:700}
+    .who{min-width:0;line-height:1.3;flex:1}
+    .who b{display:block;font-size:13px;font-weight:600}
+    .who span{font-size:11.5px;color:var(--faint)}
+    .ico{width:30px;height:30px;border-radius:999px;display:grid;place-items:center;
+      color:var(--faint);flex:none;transition:background .15s,color .15s}
+    .ico:hover{background:var(--card-2);color:var(--fg)}
+    .ico svg{width:15px;height:15px}
+
+    /* ================= MAIN ================= */
+    .main{display:flex;flex-direction:column;min-width:0;min-height:0}
+    .scroll{flex:1;overflow-y:auto;min-height:0}
+    .wrap{max-width:700px;margin:0 auto;padding:0 32px}
+    .wide{max-width:880px;margin:0 auto;padding:0 32px}
+
+    .page{display:none;padding:64px 0 32px}
+    body.s-client .p-client,body.s-skills .p-skills,body.s-conn .p-conn{display:block}
+
+    .head{margin-bottom:30px}
+    .head h1{font-size:27px;font-weight:600;letter-spacing:-.02em}
+    .head p{font-size:14.5px;color:var(--muted);margin-top:8px;line-height:1.55;max-width:60ch}
+    .head .k{font-size:12.5px;color:var(--accent);font-weight:500;margin-bottom:7px}
+
+    /* ---- HOME ---- */
+    .home{display:none;min-height:100%;flex-direction:column;justify-content:center;padding:72px 0 48px}
+    body.s-home .home{display:flex}
+    .greet{text-align:center;margin-bottom:34px}
+    .greet h1{font-size:31px;font-weight:500;letter-spacing:-.025em}
+    .greet p{font-size:15px;color:var(--faint);margin-top:9px}
+
+    .cgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:40px}
+    @media (max-width:700px){.cgrid{grid-template-columns:1fr}}
+    .ccard{display:flex;align-items:center;gap:12px;text-align:left;padding:15px;
+      border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--card);
+      transition:border-color .16s,transform .16s var(--ease)}
+    .ccard:hover{border-color:var(--accent);transform:translateY(-1px)}
+    .ccard img{width:34px;height:34px;border-radius:50%;object-fit:contain;background:#fff;
+      border:1px solid var(--line);flex:none}
+    .ccard b{display:block;font-size:15px;font-weight:600;margin-bottom:2px}
+    .ccard span{font-size:12.5px;color:var(--faint)}
+
+    .seclbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+      color:var(--faint);margin-bottom:12px}
+
+    /* ---- CLIENT PAGE ----
+       Two sections, and each one says its own name. The earlier cut had a
+       strip of four numbers — a percentage, two counts and a live status —
+       which is four different kinds of fact pretending to be one row. Each
+       number went back to the thing it describes instead. */
+    .sechead{display:flex;align-items:baseline;gap:12px;margin-bottom:13px;
+      padding-bottom:10px;border-bottom:1px solid var(--line)}
+    .sechead h2{font-size:17px;font-weight:600;letter-spacing:-.01em}
+    .sechead .fill{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+    .sechead .act{margin-left:auto;font-size:13px;color:var(--accent);font-weight:500}
+
+    /* Signals get their own band rather than a footnote under Context.
+       They are a different kind of fact with a different shelf life —
+       Context is authored and lasts a quarter, a signal is detected and
+       is stale in a week. Nesting one inside the other implied the agent
+       could treat them with the same authority. */
+    .sechead .live{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
+    .sechead .live i{width:6px;height:6px;border-radius:50%;background:var(--accent-2);flex:none;
+      animation:pulse 2.4s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+    .sigrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+      padding:11px 0;border-bottom:1px solid var(--line);font-size:13.5px;transition:color .15s}
+    .sigrow:hover{color:var(--accent)}
+    .sigrow b{font-weight:600;flex:none}
+    .sigrow .w{color:var(--muted);flex:1;min-width:0;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .sigrow .v{font-size:11.5px;color:var(--accent);flex:none}
+    .sigmore{padding-top:12px;font-size:12.5px;color:var(--faint)}
+
+    /* ---- CONNECTORS ----
+       The page answers one question: what are we plugged into, and what is
+       live right now. Three states, and the dot carries all of it — cyan is
+       running, magenta wakes when a skill calls it, grey is available and
+       not set up. Usage counts come from the skill catalogue, so a new
+       skill with a new connector shows up here without anyone editing
+       this page. */
+    .cnx{display:flex;align-items:center;gap:14px;padding:12px 0;
+      border-bottom:1px solid var(--line);font-size:13.5px}
+    .cnx .dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--line-2)}
+    .cnx .dot.live{background:var(--accent);animation:pulse 2.4s infinite}
+    .cnx .dot.idle{background:var(--accent-2)}
+    .cnx b{font-weight:600;flex:none;width:132px}
+    .cnx .d{color:var(--muted);flex:1;min-width:0}
+    .cnx .u{font-size:12px;color:var(--faint);flex:none;text-align:right}
+    .cnx .u b{font-weight:600;color:var(--muted);width:auto;display:inline}
+    .cnx .go{font-size:12.5px;color:var(--accent);font-weight:500;flex:none}
+    @media (max-width:700px){
+      .cnx{flex-wrap:wrap}.cnx b{width:auto}.cnx .d{flex-basis:100%;order:3;padding-left:21px}
+    }
+    .cnx-note{font-size:12.5px;color:var(--muted);margin:-4px 0 14px}
+
+    /* the sidebar's client name is the way back to the client page, so it
+       behaves like a control rather than a label */
+    .ws{display:flex;align-items:center;gap:10px;min-width:0;width:100%;text-align:left;
+      padding:4px 6px;margin:0 -6px;border-radius:var(--radius-lg);transition:background .15s}
+    button.ws:hover{background:var(--card-2)}
+
+
+    .prow{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:15px 17px;
+      border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--card);
+      margin-bottom:8px;transition:border-color .16s,transform .16s var(--ease)}
+    .prow:hover{border-color:var(--accent);transform:translateY(-1px)}
+    .prow .b{flex:1;min-width:0}
+    .prow .b b{display:block;font-size:15.5px;font-weight:600;margin-bottom:3px}
+    .prow .b span{font-size:13px;color:var(--muted)}
+    .prow .go{font-size:13px;color:var(--accent);font-weight:500;flex:none}
+
+    .fact{padding:13px 0;border-top:1px solid var(--line);display:flex;gap:18px}
+    .fact .fk{font-size:12.5px;color:var(--faint);width:88px;flex:none;padding-top:1px}
+    .fact p{font-size:13.5px;line-height:1.55;flex:1}
+
+    /* ---- SKILLS PAGE ----
+       The one place the detail belongs. Someone opens this to learn the
+       map, not to get work done, so it can afford to be dense. */
+    .phase{margin-bottom:30px}
+    .phase h2{font-size:17px;font-weight:600;letter-spacing:-.01em}
+    .phase p.d{font-size:13.5px;color:var(--muted);margin:4px 0 14px}
+    .sgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+    @media (max-width:760px){.sgrid{grid-template-columns:1fr}}
+    .scard{text-align:left;padding:14px;border:1px solid var(--line);border-radius:var(--radius-lg);
+      background:var(--card);transition:border-color .16s}
+    .scard:hover{border-color:var(--line-2)}
+    .scard .t{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+    .scard .g{width:28px;height:28px;border-radius:var(--radius);flex:none;display:grid;
+      place-items:center;background:var(--accent-soft);color:var(--accent)}
+    .scard .g svg{width:15px;height:15px}
+    .scard.watch .g{background:var(--accent-2-soft);color:var(--accent-2)}
+    .scard .t b{font-size:14px;font-weight:600;flex:1}
+    .scard > p{font-size:13px;line-height:1.5;color:var(--muted)}
+    .scard .meta{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);
+      font-size:11.5px;color:var(--faint);line-height:1.6}
+    .scard .meta b{color:var(--muted);font-weight:500}
+    /* a skill added in this session announces itself once, then settles */
+    .scard.fresh{border-color:var(--accent);animation:land 2.4s var(--ease)}
+    @keyframes land{0%{background:var(--accent-soft)}100%{background:var(--card)}}
+    .scard .mine{display:inline-block;margin-top:9px;font-size:11px;color:var(--accent-2)}
+
+    /* ---- NEW SKILL SHEET ----
+       The catalogue is supposed to grow, so there has to be a door. Two
+       routes in: describe what you want and let MekOS draft the definition,
+       or fill the fields yourself. The first is the point — authoring a
+       skill should feel like the rest of the product, not like an admin
+       screen bolted to the side of it. */
+    .sheet{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:24px}
+    .sheet[hidden]{display:none}
+    .sheet-bg{position:absolute;inset:0;background:rgba(23,21,15,.42);backdrop-filter:blur(2px)}
+    [data-theme="dark"] .sheet-bg{background:rgba(0,0,0,.6)}
+    .sheet-box{position:relative;width:100%;max-width:560px;max-height:86vh;display:flex;
+      flex-direction:column;background:var(--card);border:1px solid var(--line-2);
+      border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden}
+    .sheet-top{display:flex;align-items:center;gap:12px;padding:18px 20px 0}
+    .sheet-top h2{font-size:19px;font-weight:600;letter-spacing:-.015em;flex:1}
+    .tabs{display:flex;gap:4px;padding:14px 20px 0}
+    .tab{padding:7px 13px;border-radius:999px;font-size:13.5px;color:var(--muted);
+      transition:background .15s,color .15s}
+    .tab:hover{background:var(--card-2);color:var(--fg)}
+    .tab.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+    .sheet-body{flex:1;overflow-y:auto;padding:16px 20px 20px;min-height:0}
+    .tabp{display:none}
+    .tabp.on{display:block}
+    .note{font-size:13.5px;color:var(--muted);line-height:1.55;margin-bottom:12px}
+    .dta{width:100%;border:1px solid var(--line-2);border-radius:var(--radius-lg);background:var(--bg);
+      font-family:var(--font);font-size:14.5px;color:var(--fg);padding:13px 14px;line-height:1.5;
+      resize:vertical;min-height:84px;transition:border-color .16s}
+    .dta:focus{outline:none;border-color:var(--accent)}
+
+    .fields{display:grid;gap:11px}
+    .f{display:grid;gap:5px}
+    .f label{font-size:12.5px;color:var(--faint)}
+    .f input{width:100%;border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);
+      font-family:var(--font);font-size:14px;color:var(--fg);padding:9px 11px;transition:border-color .16s}
+    .f input:focus{outline:none;border-color:var(--accent)}
+    .f.two{grid-template-columns:1fr 1fr;gap:11px}
+    .f-why{font-size:12px;color:var(--faint);line-height:1.5;margin-top:-1px}
+
+    .drafted{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+    .drafted .dh{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--accent);margin-bottom:12px}
+    .drafted .dh i{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;font-style:normal}
+
+    .sheet-foot{display:flex;align-items:center;gap:9px;padding:14px 20px;border-top:1px solid var(--line);
+      background:var(--card-2);flex-wrap:wrap}
+    .sheet-foot .n{font-size:12px;color:var(--faint);flex:1;min-width:140px}
+    .btn[disabled]{opacity:.4;cursor:default}
+    .btn[disabled]:hover{border-color:var(--line-2)}
+
+    /* ---- THREAD ---- */
+    .thread{display:none;padding:64px 0 24px}
+    body.s-project .thread.on{display:block}
+    .thead{margin-bottom:30px}
+    .thead h1{font-size:21px;font-weight:600;letter-spacing:-.015em}
+    .thead p{font-size:13.5px;color:var(--faint);margin-top:5px}
+
+    .msg{margin-bottom:30px}
+    .msg.me{display:flex;flex-direction:column;align-items:flex-end}
+    .bub{background:var(--card-2);border-radius:var(--radius-lg) var(--radius-lg) 2px var(--radius-lg);
+      padding:11px 15px;font-size:15px;line-height:1.5;max-width:82%}
+    /* A user message is one thing: the ask, plus whatever you wanted applied
+       to it. The chips used to float above the bubble as solid accent pills,
+       which made the annotation louder than the sentence it annotated. Now
+       they sit inside, under the text, below a hairline — so the order reads
+       "here's what I want, here's what to do it with". */
+    .bub .t{display:block}
+    .bub .att{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;padding-top:9px;
+      border-top:1px solid var(--line-2)}
+    .bub .att:empty{display:none}
+    .tag{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+      font-size:12px;font-weight:500;background:var(--accent-soft);color:var(--fg);
+      border:1px solid transparent}
+    .tag svg{width:11px;height:11px;color:var(--accent);flex:none}
+    /* a file is something you brought, not something you asked for */
+    .tag.f{background:transparent;border-color:var(--line-2);color:var(--muted);font-weight:400}
+    .tag.f svg{color:var(--muted)}
+
+    .from{display:flex;align-items:center;gap:9px;margin-bottom:11px}
+    .from i{width:22px;height:22px;border-radius:var(--radius);flex:none;display:grid;
+      place-items:center;background:var(--accent);color:var(--accent-fg);font-size:11px;font-style:normal}
+    .from b{font-size:13.5px;font-weight:600}
+    .say{font-size:15px;line-height:1.65}
+    .say + .say{margin-top:12px}
+    .say em{color:var(--muted);font-style:normal}
+    ul.pts{margin-top:12px}
+    ul.pts li{list-style:none;font-size:14.5px;line-height:1.6;padding-left:17px;position:relative;margin-bottom:8px}
+    ul.pts li::before{content:'';position:absolute;left:3px;top:9px;width:5px;height:5px;
+      border-radius:50%;background:var(--accent)}
+
+    /* what the answer was built on — one quiet line, not a row of chips */
+    .basis{margin-top:14px;font-size:12.5px;color:var(--faint);line-height:1.6}
+    .basis b{color:var(--muted);font-weight:500}
+
+    /* next moves */
+    .next{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .nbtn{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;
+      border:1px solid var(--line-2);font-size:13.5px;font-weight:500;
+      transition:border-color .16s,background .16s}
+    .nbtn:hover{border-color:var(--accent);background:var(--accent-soft)}
+    .nbtn svg{width:13px;height:13px;color:var(--accent)}
+    .nbtn.q svg{display:none}
+
+    /* ---- RUN CARD ----
+       The single biggest change from B. The card is now: what ran, one
+       line of what it did, the artifact, what's next. Six printed steps
+       became one <summary> you can open if you want the receipts. */
+    .run{margin-top:16px;border:1px solid var(--line);border-radius:var(--radius-lg);
+      background:var(--card);overflow:hidden}
+    .rtop{display:flex;align-items:center;gap:10px;padding:13px 16px}
+    .rtop .g{width:24px;height:24px;border-radius:var(--radius);flex:none;display:grid;
+      place-items:center;background:var(--accent);color:var(--accent-fg)}
+    .rtop .g svg{width:13px;height:13px}
+    .rtop b{font-size:14.5px;font-weight:600}
+    .rtop .el{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+
+    .did{border-top:1px solid var(--line)}
+    .did > summary{display:flex;align-items:center;gap:9px;padding:11px 16px;cursor:pointer;
+      font-size:13px;color:var(--muted);list-style:none;transition:background .15s}
+    .did > summary:hover{background:var(--card-2);color:var(--fg)}
+    .did > summary .ar{width:11px;height:11px;flex:none;opacity:.6;transition:transform .2s var(--ease)}
+    .did[open] > summary .ar{transform:rotate(90deg)}
+    .did > summary .sm{flex:1;min-width:0}
+    .steps{padding:2px 16px 14px}
+    .step{display:flex;align-items:flex-start;gap:10px;padding:5px 0;font-size:13px;line-height:1.5}
+    .step i{width:13px;height:13px;border-radius:50%;flex:none;margin-top:3px;display:grid;
+      place-items:center;background:var(--accent-soft);color:var(--accent);font-size:7.5px;font-style:normal}
+    .step .x{color:var(--muted);flex:1;min-width:0}
+    .step .x b{color:var(--fg);font-weight:600}
+    .step .r{font-family:var(--mono);font-size:10px;color:var(--faint);flex:none}
+    .step.hold i{background:var(--accent-2-soft);color:var(--accent-2)}
+
+    /* ---- ARTIFACT ---- */
+    .art{margin:0 16px 16px;border:1px solid var(--line-2);border-radius:var(--radius-lg);overflow:hidden}
+    .run > .art:first-of-type{margin-top:2px}
+    .atop{display:flex;align-items:center;gap:9px;padding:10px 14px;background:var(--card-2);
+      border-bottom:1px solid var(--line)}
+    .atop b{font-size:13.5px;font-weight:600;flex:1}
+    .atop .v{font-family:var(--mono);font-size:10px;color:var(--faint)}
+
+    .star{padding:16px 15px 2px}
+    .star .l{font-size:12px;color:var(--faint);margin-bottom:6px}
+    .star .line{font-size:21px;font-weight:600;letter-spacing:-.015em}
+    .four{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);margin-top:16px}
+    @media (max-width:620px){.four{grid-template-columns:1fr}}
+    .four .c{background:var(--card);padding:13px 15px}
+    .four .c i{display:block;font-style:normal;font-size:12px;color:var(--accent);
+      font-weight:600;margin-bottom:6px}
+    .four .c p{font-size:13.5px;line-height:1.55}
+
+
+    /* RFI coverage + held */
+    .cov{display:flex;gap:28px;padding:15px;border-bottom:1px solid var(--line)}
+    .cov div .n{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+    .cov div .n.w{color:var(--accent-2)}
+    .cov div .l{font-size:12px;color:var(--faint);margin-top:2px}
+    .qa{padding:14px 15px;border-bottom:1px solid var(--line)}
+    .qa .q{font-size:13.5px;font-weight:600;margin-bottom:6px;line-height:1.45}
+    .qa .a{font-size:13.5px;line-height:1.6;color:var(--muted)}
+    .qa .a b{color:var(--fg);font-weight:600}
+    .qa .c{margin-top:8px;font-size:11.5px;color:var(--faint)}
+    .held{padding:14px 15px;background:var(--accent-2-soft)}
+    .held .h{font-size:12.5px;font-weight:600;color:var(--accent-2);margin-bottom:8px}
+    .held li{list-style:none;font-size:13px;line-height:1.55;color:var(--muted);margin-bottom:5px;
+      padding-left:15px;position:relative}
+    .held li:last-child{margin-bottom:0}
+    .held li::before{content:'';position:absolute;left:3px;top:8px;width:4px;height:4px;
+      border-radius:50%;background:var(--accent-2)}
+
+    .files{display:flex;flex-wrap:wrap;gap:7px;padding:15px}
+    .ofile{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid var(--line-2);
+      border-radius:var(--radius-lg);font-size:13px;transition:border-color .16s}
+    .ofile:hover{border-color:var(--accent)}
+    .ofile svg{width:13px;height:13px;color:var(--accent);flex:none}
+
+    /* a small figure inside a plain answer */
+    .mt{margin-top:15px;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+    .mt .r{display:flex;align-items:center;gap:12px;padding:9px 14px;border-top:1px solid var(--line);font-size:13.5px}
+    .mt .r:first-child{border-top:none;background:var(--card-2);font-size:12px;color:var(--faint)}
+    .mt .w{flex:1}
+    .mt .v{font-variant-numeric:tabular-nums;font-weight:600;width:60px;text-align:right}
+    .mt .d{font-variant-numeric:tabular-nums;width:58px;text-align:right;color:var(--accent-2);font-weight:600}
+    .mt .r:first-child .v,.mt .r:first-child .d{font-weight:400;color:var(--faint)}
+
+    .racts{display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 16px;align-items:center}
+    .btn{font-size:13px;font-weight:500;padding:8px 14px;border-radius:var(--radius-lg);
+      border:1px solid var(--line-2);transition:border-color .16s,background .16s}
+    .btn:hover{border-color:var(--accent)}
+    .btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:600}
+    .btn.pri:hover{filter:brightness(1.07)}
+    .saved{margin-left:auto;font-size:12px;color:var(--faint)}
+
+    .diff{margin-top:14px;border-left:2px solid var(--accent-2);padding:3px 0 3px 14px}
+    .diff .was{font-size:14px;line-height:1.55;color:var(--faint);
+      text-decoration:line-through;text-decoration-thickness:1px}
+    .diff .now{font-size:14px;line-height:1.55;font-weight:500;margin-top:5px}
+
+    /* ---- COMPOSER ---- */
+    .composer{padding:0 32px 24px;background:linear-gradient(to top,var(--bg) 64%,transparent)}
+    body.s-home .composer{background:none}
+    .cwrap{max-width:700px;margin:0 auto;position:relative}
+    .cbox{border:1px solid var(--line-2);border-radius:16px;background:var(--card);
+      box-shadow:var(--shadow-sm);transition:border-color .18s}
+    .cbox:focus-within{border-color:var(--accent)}
+    .armed{display:flex;flex-wrap:wrap;gap:6px;padding:13px 14px 0}
+    .armed:empty{display:none}
+    .achip{display:inline-flex;align-items:center;gap:7px;padding:5px 8px 5px 11px;border-radius:999px;
+      background:var(--accent-soft);border:1px solid var(--accent);font-size:13px;font-weight:500}
+    .achip svg.i{width:12px;height:12px;color:var(--accent)}
+    .achip .x{display:grid;place-items:center;width:15px;height:15px;border-radius:50%;color:var(--muted)}
+    .achip .x:hover{background:var(--line);color:var(--fg)}
+    .achip .x svg{width:8px;height:8px}
+
+    .ta{width:100%;border:none;background:none;resize:none;font-family:var(--font);font-size:15.5px;
+      color:var(--fg);padding:16px 18px 8px;line-height:1.5;min-height:58px}
+    .ta::placeholder{color:var(--faint)}
+    .crow{display:flex;align-items:center;gap:8px;padding:8px 11px 11px}
+    .cbtn{display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;
+      border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);
+      font-size:13.5px;font-weight:600;transition:background .16s,color .16s}
+    .cbtn:hover,.cbtn.open{background:var(--accent);color:var(--accent-fg)}
+    .cbtn svg{width:13px;height:13px}
+    .scope{margin-left:auto;font-size:12.5px;color:var(--faint);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .send{width:33px;height:33px;border-radius:999px;background:var(--accent);color:var(--accent-fg);
+      display:grid;place-items:center;flex:none}
+    .send svg{width:16px;height:16px}
+
+    /* ---- SKILL MENU ----
+       Opens on six. The other twenty-one are one click down, grouped the
+       way the team names them. No connector chips, no agent names, no
+       input lists — those live on the Skills page. */
+    .menu{position:absolute;left:0;right:0;bottom:calc(100% + 10px);z-index:8;display:none;
+      border:1px solid var(--line-2);border-radius:14px;background:var(--card);
+      box-shadow:var(--shadow-lg);overflow:hidden}
+    .menu.open{display:block}
+    .mfind{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line)}
+    .mfind svg{width:14px;height:14px;color:var(--faint);flex:none}
+    .mfind input{flex:1;border:none;background:none;font-family:var(--font);font-size:14px;color:var(--fg);min-width:0}
+    .mfind input::placeholder{color:var(--faint)}
+
+    .recipes{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:11px 16px;
+      border-bottom:1px solid var(--line)}
+    .recipes span.l{font-size:12px;color:var(--faint);margin-right:3px}
+    .rcp{padding:5px 12px;border-radius:999px;border:1px solid var(--line-2);font-size:13px;
+      color:var(--muted);transition:border-color .16s,color .16s}
+    .rcp:hover{border-color:var(--accent);color:var(--fg)}
+
+    .mbody{max-height:40vh;overflow-y:auto;padding:7px}
+    .mgrp{padding:11px 11px 5px;font-size:12px;color:var(--faint)}
+    .mrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:9px 11px;
+      border-radius:var(--radius-lg);transition:background .14s}
+    .mrow:hover{background:var(--card-2)}
+    .mrow .g{width:26px;height:26px;border-radius:var(--radius);flex:none;display:grid;
+      place-items:center;background:var(--accent-soft);color:var(--accent)}
+    .mrow .g svg{width:14px;height:14px}
+    .mrow .n{font-size:14px;font-weight:600;flex:none}
+    .mrow .d{font-size:13px;color:var(--faint);flex:1;min-width:0;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .mrow.sel{background:var(--accent-soft)}
+    .mrow .chk{width:16px;height:16px;border-radius:4px;border:1px solid var(--line-2);flex:none;
+      display:grid;place-items:center;color:transparent;font-size:9px}
+    .mrow.sel .chk{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+    .mrow.wait{opacity:.5}
+    .mrow.wait .g{background:transparent;border:1px solid var(--line-2);color:var(--faint)}
+    .mrow.wait .d::after{content:' · needs ' attr(data-needs);color:var(--accent-2)}
+    .mrow.watch .g{background:var(--accent-2-soft);color:var(--accent-2)}
+    .tog{width:28px;height:16px;border-radius:999px;border:1px solid var(--line-2);flex:none;
+      position:relative;transition:background .16s,border-color .16s}
+    .tog::after{content:'';position:absolute;top:1px;left:1px;width:12px;height:12px;border-radius:50%;
+      background:var(--faint);transition:transform .18s var(--ease),background .18s}
+    .mrow.ison .tog{background:var(--accent-2);border-color:var(--accent-2)}
+    .mrow.ison .tog::after{transform:translateX(12px);background:#fff}
+
+    .mall{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
+      padding:11px;border-top:1px solid var(--line);font-size:13px;color:var(--accent);font-weight:500}
+    .mall:hover{background:var(--card-2)}
+    .mall svg{width:12px;height:12px;transition:transform .2s var(--ease)}
+    body.allskills .mall svg{transform:rotate(180deg)}
+
+    .hint{max-width:700px;margin:10px auto 0;font-size:12px;color:var(--faint);text-align:center}
+
+    @media (max-width:880px){
+      .app{grid-template-columns:1fr}
+      .side{display:none}
+      .wrap,.wide,.composer{padding-left:18px;padding-right:18px}
+    }
+  </style>
+</head>
+<body class="s-home">
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <g id="mek"><path fill="currentColor" d="M0,1.71h9.72l5.88,19.48h.08L21.48,1.71h9.76v29.6h-6.96l.24-22.16-.08-.08-6.32,22.24h-5L6.8,9.07l-.08.08.24,22.16H0V1.71Z"/><path fill="currentColor" d="M55.73,24.35c-1.08,2.48-2.64,4.4-4.52,5.68-1.84,1.32-4.04,2-6.32,2-6.36,0-11.76-5.16-11.76-11.76,0-6.2,4.88-11.92,11.64-11.92s11.72,5.36,11.72,12.12c0,.88-.08,1.24-.16,1.76h-16.64c.4,2.64,2.6,4.2,5.2,4.2,2.04,0,3.12-.92,4.04-2.08h6.8ZM49.84,17.75c-.28-1.32-1.6-3.8-5.04-3.8s-4.76,2.48-5.04,3.8h10.08Z"/><path fill="currentColor" d="M58.41,1.71h6.64v15.44h.08l6.16-8.04h7.88l-8.36,9.76,8.12,12.44h-7.52l-6.28-10.68h-.08v10.68h-6.64V1.71Z"/><path fill="var(--accent)" d="M80.65,16.97c0-9.69,6.98-16.97,16.5-16.97s16.54,7.07,16.54,16.04-7.19,16.46-16.16,16.46-16.88-6.26-16.88-15.53ZM105.7,16.29c0-4.91-3.51-9.27-8.55-9.27s-8.5,4.19-8.5,9.14,3.51,9.31,8.63,9.31,8.42-4.19,8.42-9.18Z"/><path fill="var(--accent)" d="M128.59,9.73c-.34-2.24-1.27-3.05-2.83-3.05-1.48,0-2.75,1.06-2.75,2.45,0,1.86,1.69,2.71,5.12,4.19,6.9,2.96,8.63,5.46,8.63,9.56,0,6.05-4.15,9.61-10.92,9.61s-11.3-3.55-11.3-10.28v-.68h7.96c.04,2.58,1.31,4.27,3.3,4.27,1.65,0,3-1.31,3-3,0-2.5-3.47-3.6-6.3-4.74-5.12-2.07-7.45-4.78-7.45-8.84,0-5.33,5.16-9.22,10.92-9.22,2.07,0,3.89.47,5.54,1.31,3.34,1.73,4.95,4.23,4.99,8.42h-7.91Z"/></g>
+
+    <symbol id="i-plus" viewBox="0 0 16 16" fill="none"><path d="M8 3.2v9.6M3.2 8h9.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-find" viewBox="0 0 16 16" fill="none"><circle cx="7.2" cy="7.2" r="4.4" stroke="currentColor" stroke-width="1.5"/><path d="M10.6 10.6 13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-back" viewBox="0 0 16 16" fill="none"><path d="M9.6 4 5.8 8l3.8 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-right" viewBox="0 0 16 16" fill="none"><path d="M6.4 4 10.2 8l-3.8 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-down" viewBox="0 0 16 16" fill="none"><path d="M4.5 6.5 8 10l3.5-3.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-send" viewBox="0 0 16 16" fill="none"><path d="M8 12.8V3.6M4.4 7.2 8 3.6l3.6 3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 16 16" fill="none"><path d="M13 9.6A5.6 5.6 0 0 1 6.4 3a5.6 5.6 0 1 0 6.6 6.6Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="i-file" viewBox="0 0 16 16" fill="none"><path d="M4 2.6h5.4L12.4 5.6v7.8H4z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9.2 2.8v3h3" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-home" viewBox="0 0 16 16" fill="none"><rect x="2.4" y="2.4" width="11.2" height="11.2" rx="1.8" stroke="currentColor" stroke-width="1.5"/><path d="M2.4 6.2h11.2" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 16 16" fill="none"><path d="M5.6 1.9v3.4M10.4 1.9v3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M3.4 5.3h9.2v2.4a4.6 4.6 0 0 1-9.2 0z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 12.3v1.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 16 16" fill="none"><rect x="2.3" y="2.3" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.5"/><rect x="8.7" y="2.3" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.5"/><rect x="2.3" y="8.7" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.5"/><rect x="8.7" y="8.7" width="5" height="5" rx="1.2" stroke="currentColor" stroke-width="1.5"/></symbol>
+
+    <!-- skill glyphs -->
+    <symbol id="s-sheet" viewBox="0 0 16 16" fill="none"><rect x="2.2" y="2.8" width="11.6" height="10.4" rx="1.4" stroke="currentColor" stroke-width="1.5"/><path d="M2.2 6.2h11.6M6.4 6.2v7M2.2 9.7h11.6" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="s-doc" viewBox="0 0 16 16" fill="none"><path d="M3.6 2.4h5.6L12.8 6v7.6H3.6z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 2.6v3.2h3.2M5.6 9h4.4M5.6 11h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="s-pen" viewBox="0 0 16 16" fill="none"><path d="M10.4 2.6l3 3-7 7-3.8.8.8-3.8 7-7z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.9 4.1l3 3" stroke="currentColor" stroke-width="1.3"/></symbol>
+    <symbol id="s-target" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.5"/><path d="M8 .9v2.2M8 12.9v2.2M.9 8h2.2M12.9 8h2.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="s-spark" viewBox="0 0 16 16" fill="none"><path d="M8 1.8l1.5 4.2L13.8 7.5 9.5 9 8 13.2 6.5 9 2.2 7.5 6.5 6 8 1.8z" fill="currentColor"/></symbol>
+    <symbol id="s-play" viewBox="0 0 16 16" fill="none"><rect x="2.2" y="3.4" width="11.6" height="9.2" rx="1.6" stroke="currentColor" stroke-width="1.5"/><path d="M6.8 6.6 10 8l-3.2 1.4z" fill="currentColor"/></symbol>
+    <symbol id="s-bars" viewBox="0 0 16 16" fill="none"><path d="M2.4 13.2V9.6M6.1 13.2V5.2M9.9 13.2V7.4M13.6 13.2V3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="s-people" viewBox="0 0 16 16" fill="none"><circle cx="6.2" cy="5.4" r="2.3" stroke="currentColor" stroke-width="1.5"/><path d="M1.9 13c0-2.4 1.9-3.8 4.3-3.8S10.5 10.6 10.5 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M11.2 4.2a2.2 2.2 0 0 1 0 4.1M12.6 13c0-1.8-.6-2.9-1.6-3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="s-shield" viewBox="0 0 16 16" fill="none"><path d="M8 1.9l4.8 1.8v4.1c0 3-2 5.2-4.8 6.3-2.8-1.1-4.8-3.3-4.8-6.3V3.7L8 1.9z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.9 7.9 7.5 9.5l2.8-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="s-link" viewBox="0 0 16 16" fill="none"><circle cx="5.2" cy="5.2" r="2.6" stroke="currentColor" stroke-width="1.5"/><circle cx="10.8" cy="10.8" r="2.6" stroke="currentColor" stroke-width="1.5"/><path d="M7.2 7.2l1.6 1.6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="s-cost" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.5"/><path d="M8 4.4v7.2M9.9 6.1a2 2 0 0 0-3.8.6c0 1.9 3.8.9 3.8 2.7a2 2 0 0 1-3.8.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="s-img" viewBox="0 0 16 16" fill="none"><rect x="2.4" y="3" width="11.2" height="10" rx="1.5" stroke="currentColor" stroke-width="1.5"/><circle cx="6" cy="6.4" r="1.1" fill="currentColor"/><path d="M2.8 11.4l3-2.6 2.6 2.3 2-1.6 2.8 2.2" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></symbol>
+    <symbol id="s-cal" viewBox="0 0 16 16" fill="none"><rect x="2.4" y="3.4" width="11.2" height="10.2" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M2.4 6.6h11.2M5.4 2.2v2.4M10.6 2.2v2.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="s-radar" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="1.6" fill="currentColor"/><path d="M11.2 4.8a4.5 4.5 0 0 1 0 6.4M13.4 2.6a7.6 7.6 0 0 1 0 10.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4.8 11.2a4.5 4.5 0 0 1 0-6.4M2.6 13.4a7.6 7.6 0 0 1 0-10.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="s-bolt" viewBox="0 0 16 16" fill="none"><path d="M9 1.8 3.6 9.2h3.6l-.6 5 5.4-7.4H8.4l.6-5z" fill="currentColor"/></symbol>
+    <symbol id="s-out" viewBox="0 0 16 16" fill="none"><path d="M8 1.9v8.4M4.9 7.2 8 10.3l3.1-3.1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.8 12.3v1.2h10.4v-1.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  </svg>
+
+<div class="app">
+
+  <!-- ===================== SIDEBAR ===================== -->
+  <aside class="side">
+
+    <!-- ---- home: clients ---- -->
+    <div class="mode m-home">
+      <div class="s-top">
+        <!-- stays inside the file so this works unzipped on a desktop,
+             with no server and no sibling pages to 404 into -->
+        <button data-go="home" aria-label="MekOS" style="display:block;text-align:left"><svg class="logo" viewBox="0 0 136.75 32.5"><use href="#mek"></use></svg></button>
+        <button class="newbtn"><svg><use href="#i-plus"></use></svg>New client</button>
+      </div>
+      <div class="s-scroll">
+        <button class="row"><svg><use href="#i-find"></use></svg><span class="nm">Search</span></button>
+        <div class="lbl">Clients</div>
+        <button class="row" data-client><img src="assets/clients/amtrak.png" alt="" onerror="this.style.display='none'"><span class="nm">Amtrak</span><span class="ct">2</span></button>
+        <button class="row"><img src="assets/clients/delonghi.png" alt="" onerror="this.style.display='none'"><span class="nm">De'Longhi</span><span class="ct">2</span></button>
+        <button class="row"><img src="assets/clients/built.png" alt="" onerror="this.style.display='none'"><span class="nm">Built Bar</span><span class="ct">2</span></button>
+      </div>
+    </div>
+
+    <!-- ---- client ---- -->
+    <div class="mode m-client">
+      <div class="s-top">
+        <button class="back" data-go="home"><svg><use href="#i-back"></use></svg>All clients</button>
+        <!-- the client name IS the way back to the client page. An
+             "Overview" row pointing at the page you're already on was one
+             of the things making this feel like more than it is. -->
+        <button class="ws" data-nav="client"><img src="assets/clients/amtrak.png" alt="" onerror="this.style.display='none'"><b>Amtrak</b></button>
+        <button class="newbtn"><svg><use href="#i-plus"></use></svg>New project</button>
+      </div>
+      <div class="s-scroll">
+        <div class="lbl" style="padding-top:4px">Projects</div>
+        <button class="pcard" data-open="acela"><b>Acela relaunch</b><span>Positioning drafted · 2h ago</span></button>
+        <button class="pcard" data-open="rfi"><b>FY27 roster RFI</b><span>Draft exported · due 14 Nov</span></button>
+      </div>
+    </div>
+
+    <!-- ---- project ----
+         Four things: where you are, the threads in here, the files, and a
+         way back. B also listed skills used, what it reads from, and a
+         connector panel. All true, none of it load-bearing in a demo. -->
+    <div class="mode m-project">
+      <div class="s-top">
+        <button class="back" data-go="client"><svg><use href="#i-back"></use></svg>Amtrak</button>
+        <div class="ph"><h2 id="pj-n">Acela relaunch</h2><span id="pj-s">Started 9 Oct</span></div>
+      </div>
+      <div class="s-scroll">
+        <div class="lbl">Threads</div>
+        <div id="pj-threads"></div>
+        <button class="row" style="color:var(--accent)"><svg><use href="#i-plus"></use></svg><span class="nm">New thread</span></button>
+
+        <div class="lbl">Files</div>
+        <div id="pj-files"></div>
+        <button class="row" style="color:var(--accent)"><svg><use href="#i-plus"></use></svg><span class="nm">Add files</span></button>
+      </div>
+    </div>
+
+    <!-- Workspace level. The catalogue is the same whichever client you are
+         inside, so it cannot sit in Amtrak's own nav — it is a sibling of
+         Clients, not a child of one. Living outside the mode panels, it is
+         reachable from everywhere and scoped to nothing. -->
+    <div class="s-work">
+      <button class="row" data-nav="skills"><svg><use href="#i-grid"></use></svg><span class="nm">Skills</span><span class="ct" id="sidect">27</span></button>
+      <button class="row" data-nav="conn"><svg><use href="#i-plug"></use></svg><span class="nm">Connectors</span><span class="ct" id="sideconn">—</span></button>
+    </div>
+
+    <div class="s-foot">
+      <span class="av">UA</span>
+      <span class="who"><b>User A</b><span>Manager</span></span>
+      <button class="ico" id="theme" title="Toggle theme" aria-label="Toggle theme"><svg><use href="#i-moon"></use></svg></button>
+    </div>
+  </aside>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="main">
+    <div class="scroll" id="scroll">
+
+      <!-- ---------- HOME ---------- -->
+      <section class="home">
+        <div class="wrap">
+          <div class="greet">
+            <h1>Good afternoon, Yenfu</h1>
+            <p>Ask anything, or open a client to get to work.</p>
+          </div>
+          <div class="seclbl">Your clients</div>
+          <div class="cgrid">
+            <button class="ccard" data-client>
+              <img src="assets/clients/amtrak.png" alt="" onerror="this.style.display='none'">
+              <span><b>Amtrak</b><span>2 projects · 3 threads</span></span>
+            </button>
+            <button class="ccard">
+              <img src="assets/clients/delonghi.png" alt="" onerror="this.style.display='none'">
+              <span><b>De'Longhi</b><span>2 projects</span></span>
+            </button>
+            <button class="ccard">
+              <img src="assets/clients/built.png" alt="" onerror="this.style.display='none'">
+              <span><b>Built Bar</b><span>2 projects</span></span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- CLIENT ---------- -->
+      <section class="page p-client">
+        <div class="wide">
+          <div class="head">
+            <h1>Amtrak</h1>
+            <p>National passenger railroad of the U.S. · Washington, D.C. · founded 1971</p>
+          </div>
+
+          <div class="sechead">
+            <h2>Projects</h2>
+            <span class="fill">2 active</span>
+            <button class="act">New project</button>
+          </div>
+          <button class="prow" data-open="acela">
+            <span class="b"><b>Acela relaunch</b><span>Positioning drafted — waiting on a call about scope</span></span>
+            <span class="go">Open &rarr;</span>
+          </button>
+          <button class="prow" data-open="rfi">
+            <span class="b"><b>FY27 roster RFI</b><span>68 questions answered, 7 held for finance · due 14 Nov</span></span>
+            <span class="go">Open &rarr;</span>
+          </button>
+
+          <!-- This section used to be called "What MekOS knows", which was a
+               nicer phrase and a worse name: the sidebar, the stat strip and
+               this heading were three names for one thing. It is Context.
+               Every skill reads it, so it says so. -->
+          <div id="ctx" style="margin-top:38px">
+            <div class="sechead">
+              <h2>Context</h2>
+              <span class="fill">92% filled</span>
+              <button class="act">Edit</button>
+            </div>
+            <p style="font-size:13.5px;color:var(--muted);margin-bottom:6px">Every skill reads this before it does anything.</p>
+            <div class="fact"><div class="fk">Mission</div><p>Connect America safely, efficiently and sustainably — and make the train a relevant, modern travel choice.</p></div>
+            <div class="fact"><div class="fk">Goals</div><p>Grow ridership, promote Acela and the new trainsets, increase loyalty enrolment, position rail as the sustainable choice.</p></div>
+            <div class="fact"><div class="fk">Competitors</div><p>Domestic airline shuttles, intercity buses, and driving.</p></div>
+            <div class="fact"><div class="fk">Voice</div><p>Welcoming, modern and a little nostalgic — the romance of rail, told currently.</p></div>
+            <div class="fact"><div class="fk">Compliance</div><p>Public-sector messaging review, ADA accessibility, fare disclosure. No unqualified time claims.</p></div>
+          </div>
+
+          <!-- Separate band, separate heading. A signal is observed and
+               expires; a Context fact is authored and holds. Showing them
+               as two things is the only way the difference survives a demo. -->
+          <div style="margin-top:38px">
+            <div class="sechead">
+              <h2>Live signals</h2>
+              <span class="live"><i></i>Culture Radar</span>
+              <button class="act">View all</button>
+            </div>
+            <p style="font-size:13.5px;color:var(--muted);margin-bottom:4px">8 detected this week, 4 validated by a strategist. These expire — the pulse re-ranks daily.</p>
+
+            <button class="sigrow"><b>The Five-Hour Flight</b><span class="w">Honest door-to-door maths on a 70-minute shuttle</span><span class="v">Validated</span></button>
+            <button class="sigrow"><b>Shuttle fare cuts</b><span class="w">Second mid-month cut this quarter — DCA–LGA down 31%</span><span class="v">Validated</span></button>
+            <button class="sigrow"><b>Train Desk Setup</b><span class="w">Filmed as getting a workday back, not as a train post</span><span class="v">Validated</span></button>
+            <p class="sigmore">+ 1 more validated, 4 detected and not yet reviewed</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- SKILLS ---------- -->
+      <section class="page p-skills">
+        <div class="wide">
+          <div class="head">
+            <!-- no "← Amtrak": skills aren't Amtrak's, they're the
+                 workspace's. The sidebar still shows where you were, so
+                 that's the way back. -->
+            <div class="k">Workspace</div>
+            <div class="sechead" style="border:none;padding:0;margin:0">
+              <h1>Skills</h1>
+              <button class="btn pri act" data-newskill style="margin-left:auto">+ New skill</button>
+            </div>
+            <p><span id="skcount">27</span> things MekOS can do, shared across every client. Grouped the way the team already talks about the work — the groups are labels, not steps.</p>
+          </div>
+          <div id="skillspage"></div>
+
+          <!-- the catalogue is meant to grow, so the page ends by saying so
+               rather than just stopping -->
+          <div style="margin-top:8px;padding:18px 0 4px;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <p style="font-size:13.5px;color:var(--muted);flex:1;min-width:220px">Missing something? Describe what you need and MekOS drafts the skill — it's callable from the chat box straight away.</p>
+            <button class="btn pri" data-newskill>+ New skill</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- CONNECTORS ---------- -->
+      <section class="page p-conn">
+        <div class="wide">
+          <div class="head">
+            <div class="k">Workspace</div>
+            <div class="sechead" style="border:none;padding:0;margin:0">
+              <h1>Connectors</h1>
+              <button class="btn pri act" style="margin-left:auto">+ Add connector</button>
+            </div>
+            <p>What MekOS is plugged into. Three are always on; the rest stay asleep until a skill that needs them runs, so nothing is calling an API on your behalf unless you asked it to.</p>
+          </div>
+          <div id="connpage"></div>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           THREAD 1 — a plain question, no skill.
+           The floor. If chat is only a launcher for skills, the model is
+           a stepper with extra clicks.
+           ========================================================== -->
+      <section class="thread" data-t="chat">
+        <div class="wrap">
+          <div class="thead">
+            <h1>Why did bookings dip?</h1>
+            <p>Acela relaunch · no skills used</p>
+          </div>
+
+          <div class="msg me"><div class="bub">Corridor bookings were down 6% last week. Before I take this to the client — what actually happened?</div></div>
+
+          <div class="msg">
+            <div class="from"><i>✳</i><b>MekOS</b></div>
+            <p class="say">Three things moved that week. Only one of them is ours.</p>
+            <ul class="pts">
+              <li><b>Not us.</b> A 90-minute fault on the booking path on Tuesday. It shows in the workbook as failed sessions, not as lost demand.</li>
+              <li><b>Partly us.</b> Paid social was dark Wednesday to Saturday, between flights.</li>
+              <li><b>Mostly them.</b> The DCA–LGA shuttle cut fares the same week. Second time this quarter.</li>
+            </ul>
+            <p class="say">Strip the outage out and the real dip is nearer 4%, and about two-thirds of that tracks the dark days. I wouldn't lead with the fault — it invites a conversation about reliability you don't want inside a bookings review.</p>
+
+            <div class="mt">
+              <div class="r"><span class="w">Lowest one-way, DCA–NYC</span><span class="v">Now</span><span class="d">7d</span></div>
+              <div class="r"><span class="w">Airline shuttle</span><span class="v">$89</span><span class="d">−31%</span></div>
+              <div class="r"><span class="w">Megabus</span><span class="v">$19</span><span class="d">−24%</span></div>
+              <div class="r"><span class="w">Acela</span><span class="v">$147</span><span class="d" style="color:var(--faint)">—</span></div>
+            </div>
+
+            <p class="basis"><b>Built from</b> Amtrak Context, the booking workbook, this week's signals and last month's Dashboard.</p>
+
+            <div class="next">
+              <button class="nbtn" data-arm="dashboard-builder"><svg><use href="#s-bars"></use></svg>Build a dashboard for this</button>
+              <button class="nbtn" data-arm="brief-builder"><svg><use href="#s-pen"></use></svg>Brief the always-on gap</button>
+              <!-- the honest way skills get made: something ad hoc worked,
+                   and you want it again next month -->
+              <button class="nbtn q" data-newskill>Save this as a skill</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           THREAD 2 — a brief in, a 4C territory out.
+           One skill, one artifact, then an edit that deliberately does
+           not produce a second run card.
+           ========================================================== -->
+      <section class="thread on" data-t="brief">
+        <div class="wrap">
+          <div class="thead">
+            <h1>Positioning from the brief</h1>
+            <p>Acela relaunch · 1 skill used</p>
+          </div>
+
+          <div class="msg me">
+            <div class="bub">
+              <span class="t">Positioning off this brief.</span>
+              <span class="att">
+                <span class="tag f"><svg><use href="#i-file"></use></svg>Acela_Brief_Q4.pdf</span>
+              <span class="tag"><svg><use href="#s-target"></use></svg>4Cs Engine</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="from"><i>✳</i><b>Strategist Agent</b></div>
+            <p class="say">Read it. The brief is clear on the product and vague on the enemy — I've taken that to be the airline shuttle, because the booking data and the live conversation both point there. Say so if that's wrong; everything below moves if it is.</p>
+
+            <div class="run">
+              <div class="rtop">
+                <span class="g"><svg><use href="#s-target"></use></svg></span>
+                <b>4Cs Engine</b>
+                <span class="el">54s</span>
+              </div>
+
+              <details class="did">
+                <summary>
+                  <svg class="ar"><use href="#i-right"></use></svg>
+                  <span class="sm">Read the brief, built the audience from Waldo, cross-read four validated signals</span>
+                </summary>
+                <div class="steps">
+                  <div class="step"><i>✓</i><span class="x">Read <b>Acela_Brief_Q4.pdf</b> — objective, product, constraints</span><span class="r">14 pp</span></div>
+                  <div class="step"><i>✓</i><span class="x">Pulled Amtrak Context — mission, goals, competitors, voice, compliance</span><span class="r">92%</span></div>
+                  <div class="step"><i>✓</i><span class="x"><b>Waldo</b> built the Reluctant Flyer cohort from Corridor travel behaviour</span><span class="r">4 cohorts</span></div>
+                  <div class="step"><i>✓</i><span class="x"><b>GWI</b> sized the door-to-door complaint among Corridor flyers</span><span class="r">n=2,400</span></div>
+                  <div class="step"><i>✓</i><span class="x">Cross-read against the four validated signals in this week's pulse</span><span class="r">4</span></div>
+                  <div class="step"><i>✓</i><span class="x">Checked every claim against the compliance line in Context</span><span class="r">clear</span></div>
+                </div>
+              </details>
+
+              <div class="art">
+                <div class="atop"><b>Positioning</b><span class="v">v1</span></div>
+                <div class="star">
+                  <div class="l">North star</div>
+                  <div class="line">Time you get to keep.</div>
+                </div>
+                <div class="four">
+                  <div class="c"><i>Consumer</i><p>The Reluctant Flyer has stopped counting flight time and started counting the whole door-to-door day.</p></div>
+                  <div class="c"><i>Category</i><p>Against the airline shuttle, which wins on the timetable, the lane is the hours in transit — not the hours saved.</p></div>
+                  <div class="c"><i>Company</i><p>Acela is the only option where your laptop, your phone and your legroom all work from the moment you sit down.</p></div>
+                  <div class="c"><i>Culture</i><p>Slow travel stopped being a compromise and became a flex — people film the journey now, not the arrival.</p></div>
+                </div>
+              </div>
+
+              <div class="racts">
+                <button class="btn pri" data-arm="platform-writer">Write the platform</button>
+                <button class="btn" data-arm="territory-generator">Straight to territories</button>
+                <span class="saved">Saved to Library</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="msg me"><div class="bub">Push the Consumer line harder on the door-to-door reality.</div></div>
+
+          <!-- no run card: editing a line is not a skill call, and the UI
+               shouldn't inflate what happened -->
+          <div class="msg">
+            <div class="from"><i>✳</i><b>Strategist Agent</b></div>
+            <p class="say">Redrafted that line only. Everything else is untouched and the card above is now v2.</p>
+            <div class="diff">
+              <div class="was">The Reluctant Flyer has stopped counting flight time and started counting the whole door-to-door day.</div>
+              <div class="now">The Reluctant Flyer does the maths nobody at the airline does: two hours early, a security line, a gate, a bag — a 70-minute flight that costs five hours.</div>
+            </div>
+
+            <p class="say" style="margin-top:18px"><em>One thing to settle before anyone concepts this: the promise only survives on the Corridor. On long-distance routes the hours aren't the selling point, the view is. Acela platform, or brand platform?</em></p>
+            <div class="next">
+              <button class="nbtn" data-arm="platform-writer"><svg><use href="#s-spark"></use></svg>Platform Writer</button>
+              <button class="nbtn" data-arm="4cs-engine"><svg><use href="#s-target"></use></svg>Run it again, brand-wide</button>
+              <button class="nbtn" data-arm="scope-composer"><svg><use href="#s-sheet"></use></svg>Scope the Acela cut</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==========================================================
+           THREAD 3 — an Excel RFI in, a response draft out.
+           The case that proves skills aren't the five stages renamed:
+           nothing here is creative and the layout doesn't change.
+           ========================================================== -->
+      <section class="thread" data-t="rfi">
+        <div class="wrap">
+          <div class="thead">
+            <h1>Drafting the response</h1>
+            <p>FY27 roster RFI · 3 skills used</p>
+          </div>
+
+          <div class="msg me">
+            <div class="bub">
+              <span class="t">Procurement sent this through. What are we dealing with?</span>
+              <span class="att"><span class="tag f"><svg><use href="#i-file"></use></svg>Amtrak_FY27_RFI.xlsx</span></span>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="from"><i>✳</i><b>MekOS</b></div>
+            <p class="say">It's an RFI workbook, not a brief. Four tabs, 68 questions, and the deadline is buried on tab 1 rather than in the covering email — 14 Nov, 5pm ET.</p>
+            <p class="say"><em>Most of it we've answered before, in language that's already been through a client's legal team. Twelve questions want figures that live in finance. I'd rather hold those than guess.</em></p>
+            <div class="next">
+              <button class="nbtn" data-arm="rfp-decoder,answer-writer"><svg><use href="#s-pen"></use></svg>Decode and draft the lot</button>
+              <button class="nbtn q">Just the gap list</button>
+            </div>
+          </div>
+
+          <div class="msg me">
+            <div class="bub">
+              <span class="t">Draft the whole thing. Flag anything you can't source.</span>
+              <span class="att">
+                <span class="tag"><svg><use href="#s-sheet"></use></svg>RFP Decoder</span>
+              <span class="tag"><svg><use href="#s-pen"></use></svg>Answer Writer</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="run">
+              <div class="rtop">
+                <span class="g"><svg><use href="#s-sheet"></use></svg></span>
+                <b>RFP Decoder &rarr; Answer Writer</b>
+                <span class="el">2m 04s</span>
+              </div>
+
+              <details class="did">
+                <summary>
+                  <svg class="ar"><use href="#i-right"></use></svg>
+                  <span class="sm">Parsed 68 questions, matched 54 to approved answers, drafted 61</span>
+                </summary>
+                <div class="steps">
+                  <div class="step"><i>✓</i><span class="x">Parsed <b>Amtrak_FY27_RFI.xlsx</b> — 4 tabs, merged cells, 3 question formats</span><span class="r">68 Q</span></div>
+                  <div class="step"><i>✓</i><span class="x">Classified: capability 31 · process 18 · people 11 · commercial 8</span><span class="r">4 types</span></div>
+                  <div class="step"><i>✓</i><span class="x"><b>Library</b> matched questions to approved prior answers</span><span class="r">54 / 68</span></div>
+                  <div class="step"><i>✓</i><span class="x"><b>Waldo</b> matched register to Amtrak's own procurement language</span><span class="r">tone set</span></div>
+                  <div class="step hold"><i>!</i><span class="x">Drafted 61. Held 7 — five need a figure, two need a named lead</span><span class="r">7 held</span></div>
+                </div>
+              </details>
+
+              <div class="art">
+                <div class="atop"><b>Response draft</b><span class="v">v1</span></div>
+                <div class="cov">
+                  <div><div class="n">68</div><div class="l">Questions</div></div>
+                  <div><div class="n">61</div><div class="l">Drafted</div></div>
+                  <div><div class="n">54</div><div class="l">From Library</div></div>
+                  <div><div class="n w">7</div><div class="l">Held</div></div>
+                </div>
+                <div class="qa">
+                  <div class="q">Q12 · Describe how you drive discoverability without paid support.</div>
+                  <p class="a">We treat organic reach as a measured channel rather than a by-product. Every platform ships with a signal model that names the conversations we expect to enter, and we report reach earned in those conversations weekly — as <b>a number next to the idea that caused it</b>, not a sentiment summary.</p>
+                  <div class="c">From the Library — Built Bar 2025 and De&rsquo;Longhi 2026, both client-approved.</div>
+                </div>
+                <div class="held">
+                  <div class="h">7 held — I won't invent these</div>
+                  <ul>
+                    <li>Blended hourly rate by discipline — finance owns the FY27 card</li>
+                    <li>Three-year client retention figure</li>
+                    <li>Named creative lead and committed % availability</li>
+                    <li>+ 4 more commercial figures on tab 4</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="racts">
+                <button class="btn pri">Fill the 7 gaps</button>
+                <button class="btn">Open draft</button>
+                <span class="saved">Saved to Library</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="msg me">
+            <div class="bub">
+              <span class="t">Finance sent the numbers over. Now give it to me in their format.</span>
+              <span class="att"><span class="tag"><svg><use href="#s-out"></use></svg>Export Pack</span></span>
+            </div>
+          </div>
+
+          <div class="msg">
+            <div class="run">
+              <div class="rtop">
+                <span class="g"><svg><use href="#s-out"></use></svg></span>
+                <b>Export Pack</b>
+                <span class="el">38s</span>
+              </div>
+
+              <details class="did">
+                <summary>
+                  <svg class="ar"><use href="#i-right"></use></svg>
+                  <span class="sm">Wrote 68 answers back into the client's own tabs, structure intact</span>
+                </summary>
+                <div class="steps">
+                  <div class="step"><i>✓</i><span class="x">Wrote answers into the client's own tabs — merged cells and dropdowns intact</span><span class="r">68 / 68</span></div>
+                  <div class="step"><i>✓</i><span class="x">Built the long-form response in Mekanism's template</span><span class="r">22 pp</span></div>
+                  <div class="step"><i>✓</i><span class="x">Wrote an internal summary — every claim and where it's sourced</span><span class="r">1 pp</span></div>
+                </div>
+              </details>
+
+              <div class="art">
+                <div class="atop"><b>Ready to send</b><span class="v">3 files</span></div>
+                <div class="files">
+                  <button class="ofile"><svg><use href="#s-sheet"></use></svg>Amtrak_FY27_RFI_Mekanism.xlsx</button>
+                  <button class="ofile"><svg><use href="#i-file"></use></svg>Mekanism_FY27_Response.docx</button>
+                  <button class="ofile"><svg><use href="#i-file"></use></svg>Internal_claim_summary.md</button>
+                </div>
+              </div>
+
+              <div class="racts">
+                <button class="btn pri">Send to review</button>
+                <span class="saved">Saved to Library</span>
+              </div>
+            </div>
+
+            <p class="say" style="margin-top:18px"><em>Fourteen of those answers cite a number. <b>Fact Check</b> re-reads each one against its source and tells you which would survive a follow-up question in the room.</em></p>
+            <div class="next">
+              <button class="nbtn" data-arm="fact-check"><svg><use href="#s-shield"></use></svg>Run Fact Check</button>
+              <button class="nbtn q">Send as is</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ---------- COMPOSER ---------- -->
+    <div class="composer">
+      <div class="cwrap">
+
+        <div class="menu" id="menu" role="menu" aria-label="Skills">
+          <div class="mfind">
+            <svg><use href="#i-find"></use></svg>
+            <input id="q" placeholder="Search skills…" />
+          </div>
+          <div class="recipes">
+            <span class="l">Recipes</span>
+            <button class="rcp" data-recipe="research-digest,brief-builder,4cs-engine,platform-writer">Brief &rarr; platform</button>
+            <button class="rcp" data-recipe="territory-generator,versioning-matrix,motion-graphics">Platform &rarr; assets</button>
+            <button class="rcp" data-recipe="rfp-decoder,answer-writer,export-pack">New business</button>
+          </div>
+          <div class="mbody" id="mbody"></div>
+          <button class="mall" id="mall"><span id="mall-t">Show all 27</span><svg><use href="#i-down"></use></svg></button>
+        </div>
+
+        <div class="cbox">
+          <div class="armed" id="armed"></div>
+          <textarea class="ta" rows="1" placeholder="Ask anything, or add a skill"></textarea>
+          <div class="crow">
+            <button class="cbtn" id="skbtn" aria-expanded="false" aria-controls="menu">
+              <svg><use href="#i-plus"></use></svg>Skills
+            </button>
+            <span class="scope" id="scope">Acela relaunch</span>
+            <button class="send" aria-label="Send"><svg><use href="#i-send"></use></svg></button>
+          </div>
+        </div>
+      </div>
+      <p class="hint">Claude and Waldo are always on. Each skill switches on whatever else it needs.</p>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===================== NEW SKILL ===================== -->
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-label="New skill">
+  <div class="sheet-bg" data-close></div>
+  <div class="sheet-box">
+    <div class="sheet-top">
+      <h2>New skill</h2>
+      <button class="ico" data-close aria-label="Close"><svg><use href="#i-x"></use></svg></button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab on" data-tab="say">Describe it</button>
+      <button class="tab" data-tab="form">Fill it in</button>
+    </div>
+
+    <div class="sheet-body">
+      <!-- the route that matters: authoring a skill should feel like using
+           the product, not like filling in a CMS -->
+      <div class="tabp on" data-p="say">
+        <p class="note">Say what it should do, the way you'd say it to a colleague. MekOS drafts the definition and you edit it.</p>
+        <textarea class="dta" id="dta">Check a draft against the client's voice and compliance rules before it goes out, and tell me which lines would fail review.</textarea>
+        <div style="margin-top:12px"><button class="btn pri" id="draftbtn">Draft it</button></div>
+
+        <div class="drafted" id="drafted" hidden>
+          <div class="dh"><i></i>Drafted — edit anything before you add it</div>
+          <div class="fields">
+            <div class="f"><label for="d-n">Name</label><input id="d-n" value="Tone Check"></div>
+            <div class="f">
+              <label for="d-d">What it does</label>
+              <input id="d-d" value="Reads a draft against the client's voice and compliance lines, and flags what would fail review">
+              <p class="f-why">This is what people search. Say the outcome, not the mechanism.</p>
+            </div>
+            <div class="f two">
+              <div class="f"><label for="d-need">Needs</label><input id="d-need" value="a draft"></div>
+              <div class="f"><label for="d-give">Gives you</label><input id="d-give" value="Review notes"></div>
+            </div>
+            <p class="f-why">Those two do the work: <b>needs</b> decides when it shows under Ready now, <b>gives</b> is how people find it when they don't remember the name.</p>
+            <div class="f two">
+              <div class="f"><label for="d-who">Runs as</label><input id="d-who" value="Review"></div>
+              <div class="f"><label for="d-ph">Group</label><input id="d-ph" value="Operations"></div>
+            </div>
+            <div class="f">
+              <label for="d-uses">Switches on</label>
+              <input id="d-uses" value="Context, Library">
+              <p class="f-why">Context is already wired, so this one costs nothing extra to run.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabp" data-p="form">
+        <p class="note">The same seven fields, if you'd rather write them yourself.</p>
+        <div class="fields">
+          <div class="f"><label>Name</label><input placeholder="e.g. Tone Check"></div>
+          <div class="f"><label>What it does</label><input placeholder="One line. The outcome, not the mechanism."></div>
+          <div class="f two">
+            <div class="f"><label>Needs</label><input placeholder="a draft"></div>
+            <div class="f"><label>Gives you</label><input placeholder="Review notes"></div>
+          </div>
+          <div class="f two">
+            <div class="f"><label>Runs as</label><input placeholder="Review"></div>
+            <div class="f"><label>Group</label><input placeholder="Operations"></div>
+          </div>
+          <div class="f"><label>Switches on</label><input placeholder="Context, Library"></div>
+          <div class="f"><label>Instructions</label><input placeholder="What the agent should actually do"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet-foot">
+      <!-- open to everyone for the demo; the real thing gates publishing -->
+      <span class="n">Anyone can draft one. Publishing to the workspace will be a manager action.</span>
+      <button class="btn" data-close>Cancel</button>
+      <button class="btn pri" id="addskill" disabled>Add to workspace</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ============================================================
+     VERSION C — the same catalogue as B, surfaced with less.
+
+     The data model is unchanged: every skill declares what it needs and
+     what it gives. What changed is how much of that reaches the screen.
+     In the menu, a row is a name and a short line. The agent name, the
+     connectors and the input list moved to the Skills page, because they
+     are things you read when learning and never when working.
+     ============================================================ */
+
+  var PHASES=[
+    {id:'mission', n:'Mission',    d:'Work out what we are actually solving.'},
+    {id:'make',    n:'Make',       d:'Turn the thinking into things.'},
+    {id:'moments', n:'Moments',    d:'Decide when and where it lands.'},
+    {id:'multiply',n:'Multiply',   d:'Spread it, test it, read it back.'},
+    {id:'ops',     n:'Operations', d:'Runs alongside the work, not after it.'}
+  ];
+
+  /* n name · d one line · p phase · g glyph · needs · gives · who (agent)
+     · uses (connectors) · mode:'watch' for an agent that keeps running */
+  var CATALOG=[
+    {k:'rfp-decoder',n:'RFP Decoder',p:'mission',g:'s-sheet',d:'A client’s RFP workbook into a question list',
+     needs:['an RFP'],gives:'Question map',who:'Research Agent',uses:'Excel, Acrobat'},
+    {k:'research-digest',n:'Research Digest',p:'mission',g:'s-doc',d:'Decks and transcripts into what’s known and what’s missing',
+     needs:['files'],gives:'Digest',who:'Research Agent',uses:'Waldo, Acrobat'},
+    {k:'brief-builder',n:'Brief Builder',p:'mission',g:'s-pen',d:'A brief with the gaps named, not filled',
+     needs:[],gives:'Brief',who:'Research Agent',uses:'Waldo'},
+    {k:'4cs-engine',n:'4Cs Engine',p:'mission',g:'s-target',d:'A north star with Consumer, Category, Company, Culture under it',
+     needs:['a brief'],gives:'Positioning',who:'Strategist Agent',uses:'Waldo, GWI'},
+    {k:'platform-writer',n:'Platform Writer',p:'mission',g:'s-spark',d:'A platform line people can make work from',
+     needs:['a positioning'],gives:'Platform',who:'Strategist Agent',uses:'Waldo'},
+
+    {k:'territory-generator',n:'Territory Generator',p:'make',g:'s-spark',d:'A platform into named creative territories',
+     needs:['a platform'],gives:'Territories',who:'Concept Agent',uses:'Signal pulse'},
+    {k:'tissue-prep',n:'Tissue Prep',p:'make',g:'s-doc',d:'The tissue session, assembled and argued',
+     needs:['territories'],gives:'Tissue deck',who:'Concept Agent',uses:'Slides'},
+    {k:'production-estimator',n:'Production Estimator',p:'make',g:'s-cost',d:'Cost and time by asset type, off the live rate card',
+     needs:['territories'],gives:'Estimate',who:'Production Agent',uses:'Rate card, Sheets'},
+    {k:'versioning-matrix',n:'Versioning Matrix',p:'make',g:'s-sheet',d:'Every cut, ratio, locale and spec as a grid',
+     needs:['territories'],gives:'Matrix',who:'Production Agent',uses:'Sheets'},
+    {k:'static-graphics',n:'Static Graphics',p:'make',g:'s-img',d:'Key visuals, generated against the brand book',
+     needs:['territories'],gives:'Stills',who:'Production Agent',uses:'Adobe Firefly, Magnific'},
+    {k:'motion-graphics',n:'Motion Graphics',p:'make',g:'s-play',d:'Motion, animatics and cutdowns to spec',
+     needs:['a matrix'],gives:'Motion',who:'Production Agent',uses:'Higgsfield, Adobe Express, ElevenLabs'},
+    {k:'custom-model',n:'Custom Model',p:'make',g:'s-link',d:'Trained on the client’s own library, so everything after looks like them',
+     needs:['an asset library'],gives:'Model',who:'Production Agent',uses:'Higgsfield, Adobe Firefly'},
+
+    {k:'comms-planner',n:'Comms Planner',p:'moments',g:'s-cal',d:'What goes where, when, and why that order',
+     needs:['a platform'],gives:'Comms plan',who:'Strategist Agent',uses:'Sprout Social, Sheets'},
+    {k:'culture-radar',n:'Culture Radar',p:'moments',g:'s-radar',mode:'watch',d:'Watches the conversations the brand should be in',
+     needs:[],gives:'Live signals',who:'Signal Agent',uses:'Apify, Sprout Social, Google Trends'},
+    {k:'acts-engine',n:'Acts Engine',p:'moments',g:'s-bolt',d:'Things the brand can do, not just say',
+     needs:['a platform'],gives:'Acts',who:'Concept Agent',uses:'Signal pulse'},
+
+    {k:'creator-finder',n:'Creator Finder',p:'multiply',g:'s-people',d:'Creators already making this, with overlap checks',
+     needs:['a platform'],gives:'Creator list',who:'Partnerships',uses:'Apify, Sprout Social'},
+    {k:'outreach-kit',n:'Outreach Kit',p:'multiply',g:'s-out',d:'The approach, the terms and the first message',
+     needs:['a creator list'],gives:'Outreach',who:'Partnerships',uses:'Sheets, Gmail'},
+    {k:'creator-briefs',n:'Creator Briefs',p:'multiply',g:'s-pen',d:'A brief per creator, in their voice',
+     needs:['a creator list'],gives:'Briefs',who:'Partnerships',uses:'Waldo'},
+    {k:'ad-testing',n:'Ad Testing',p:'multiply',g:'s-link',d:'Cuts in front of a synthetic panel before spend',
+     needs:['assets'],gives:'Test read',who:'Measurement Agent',uses:'Brand Intel, Meta Ads'},
+    {k:'dashboard-builder',n:'Dashboard Builder',p:'multiply',g:'s-bars',d:'A live read on the thing we actually promised',
+     needs:[],gives:'Dashboard',who:'Measurement Agent',uses:'GA4, Sprout Social, Meta Ads'},
+    {k:'wrap-report',n:'Wrap Report',p:'multiply',g:'s-doc',d:'What happened, and what the next brief starts from',
+     needs:['a dashboard'],gives:'Wrap',who:'Measurement Agent',uses:'GA4, Sprout Social'},
+
+    {k:'scope-composer',n:'Scope Composer',p:'ops',g:'s-sheet',d:'Scope, deliverables and — the part people forget — exclusions',
+     needs:[],gives:'Scope',who:'Operations',uses:'Rate card, Docs'},
+    {k:'project-setup',n:'Project Setup',p:'ops',g:'s-cal',d:'Team, channels, folders, milestones',
+     needs:['a scope'],gives:'Project',who:'Operations',uses:'Slack, Drive, Calendar'},
+    {k:'pm-agent',n:'PM Agent',p:'ops',g:'s-shield',mode:'watch',d:'Chases what’s late while you work',
+     needs:[],gives:'Status',who:'Operations',uses:'Slack, Calendar'},
+    {k:'answer-writer',n:'Answer Writer',p:'ops',g:'s-pen',d:'RFP answers from approved ones. Holds what it can’t source',
+     needs:['an RFP'],gives:'Answers',who:'Response ops',uses:'Library, Waldo'},
+    {k:'fact-check',n:'Fact Check',p:'ops',g:'s-shield',d:'Every numbered claim re-read against its source',
+     needs:['answers'],gives:'Check',who:'Review',uses:'Library, Brand Intel'},
+    {k:'export-pack',n:'Export Pack',p:'ops',g:'s-out',d:'Back into the client’s workbook, plus a Word doc',
+     needs:['answers'],gives:'Files',who:'Response ops',uses:'Excel, Word, Acrobat'}
+  ];
+  var BY={}; CATALOG.forEach(function(s){ BY[s.k]=s; });
+
+  /* two projects, three threads. The scenarios live where threads live. */
+  var PROJECTS={
+    acela:{n:'Acela relaunch', s:'Started 9 Oct · 1 skill used',
+      has:['a brief','files','a positioning'],
+      threads:[{t:'brief',n:'Positioning from the brief'},{t:'chat',n:'Why did bookings dip?'}],
+      files:['Acela_Brief_Q4.pdf','Corridor_booking_data.xlsx','Brand_guidelines_2026.pdf']},
+    rfi:{n:'FY27 roster RFI', s:'Due 14 Nov · 3 skills used',
+      has:['an RFP','files','answers'],
+      threads:[{t:'rfi',n:'Drafting the response'}],
+      files:['Amtrak_FY27_RFI.xlsx','Mekanism_capabilities.pdf','Rate_card_FY27.xlsx']}
+  };
+
+  var state='home', scope='home', project='acela', thread='brief';
+  var armed=[], watching=['culture-radar'], showAll=false;
+
+  /* keyed to scope, not state — browsing the catalogue from inside a
+     project shouldn't change what that project has in it */
+  function has(){ return scope==='project' ? PROJECTS[project].has : ['files']; }
+  function ready(s){
+    if(!s.needs||!s.needs.length) return true;
+    var h=has();
+    return s.needs.every(function(n){ return h.indexOf(n)>-1; });
+  }
+
+  /* ---------- composer chips ---------- */
+  function drawArmed(){
+    document.getElementById('armed').innerHTML=armed.map(function(k){
+      var s=BY[k];
+      return '<span class="achip"><svg class="i"><use href="#'+s.g+'"></use></svg>'+s.n+
+        '<button class="x" data-off="'+k+'" aria-label="Remove '+s.n+'"><svg><use href="#i-x"></use></svg></button></span>';
+    }).join('');
+  }
+
+  /* ---------- the menu ----------
+     Six rows by default: whatever can run from where you're standing.
+     Everything else is behind one button, grouped as the team names it. */
+  function mrow(s){
+    var w=s.mode==='watch', on=armed.indexOf(s.k)>-1, rdy=ready(s), lit=watching.indexOf(s.k)>-1;
+    return '<button class="mrow'+(on?' sel':'')+(w?' watch':'')+(lit?' ison':'')+(!rdy&&!w?' wait':'')+'" data-sk="'+s.k+'">'+
+      '<span class="g"><svg><use href="#'+s.g+'"></use></svg></span>'+
+      '<span class="n">'+s.n+'</span>'+
+      '<span class="d"'+(!rdy&&!w?' data-needs="'+s.needs.join(' + ')+'"':'')+'>'+s.d+'</span>'+
+      (w?'<span class="tog"></span>':'<span class="chk">&#10003;</span>')+
+    '</button>';
+  }
+  function drawMenu(){
+    var all=CATALOG.filter(function(s){ return s.mode!=='watch'; });
+    var rdy=all.filter(ready), h='';
+    var qbox=document.getElementById('q'), q=qbox?(qbox.value||'').trim():'';
+
+    /* A search has to reach the whole catalogue, not just the six rows on
+       screen. Otherwise someone types the name of a skill they created a
+       minute ago, gets nothing, and concludes it was never saved — the
+       worst possible moment for the menu to lie. */
+    if(q||showAll){
+      PHASES.forEach(function(ph){
+        var inPh=CATALOG.filter(function(s){ return s.p===ph.id; });
+        if(inPh.length) h+='<div class="mgrp">'+ph.n+'</div>'+inPh.map(mrow).join('');
+      });
+    }else{
+      h+='<div class="mgrp">Ready now</div>'+rdy.map(mrow).join('');
+    }
+    document.getElementById('mbody').innerHTML=h;
+    document.getElementById('mall-t').textContent = showAll ? 'Show fewer' : 'Show all '+CATALOG.length;
+    document.body.classList.toggle('allskills',showAll);
+    filter();
+  }
+  /* Search reaches what a skill GIVES, not just its name — people look for
+     "territories" far more often than "Territory Generator". Matching on
+     word starts rather than any substring, so "tone" finds Tone Check and
+     not the "milestones" buried in Project Setup. */
+  function hit(s,q){
+    if(s.n.toLowerCase().indexOf(q)>-1) return true;
+    var words=(s.d+' '+(s.gives||'')+' '+(s.who||'')).toLowerCase().split(/[^a-z0-9]+/);
+    return words.some(function(w){ return w.indexOf(q)===0; });
+  }
+  function filter(){
+    var q=(document.getElementById('q').value||'').toLowerCase().trim();
+    Array.prototype.forEach.call(document.querySelectorAll('#mbody .mrow'),function(r){
+      var s=BY[r.getAttribute('data-sk')];
+      r.style.display = !q || hit(s,q) ? '' : 'none';
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#mbody .mgrp'),function(g){
+      g.style.display = q ? 'none' : '';
+    });
+  }
+
+  /* ---------- the Skills page ----------
+     The one surface that can afford detail, because you open it to learn
+     rather than to act. */
+  function drawSkillsPage(){
+    var el=document.getElementById('skillspage');
+    el.innerHTML=PHASES.map(function(ph){
+      var inPh=CATALOG.filter(function(s){ return s.p===ph.id; });
+      if(!inPh.length) return '';
+      return '<div class="phase"><h2>'+ph.n+'</h2><p class="d">'+ph.d+'</p><div class="sgrid">'+
+        inPh.map(function(s){
+          return '<div class="scard'+(s.mode==='watch'?' watch':'')+'" data-k="'+s.k+'">'+
+            '<div class="t"><span class="g"><svg><use href="#'+s.g+'"></use></svg></span><b>'+s.n+'</b></div>'+
+            '<p>'+s.d+'.</p>'+
+            '<div class="meta">'+
+              (s.mode==='watch'
+                ? '<b>Always on</b> — switch it on once and it keeps running.<br>'
+                : '<b>Gives you</b> '+s.gives+(s.needs.length?' &middot; <b>needs</b> '+s.needs.join(' + '):' &middot; runs on anything')+'<br>')+
+              '<b>Uses</b> '+s.uses+
+            '</div>'+
+            (s.mine?'<span class="mine">Added by you &middot; just now</span>':'')+
+          '</div>';
+        }).join('')+'</div></div>';
+    }).join('');
+  }
+
+  /* ---------- connectors ----------
+     Built from the same catalogue as everything else: the "used by" counts
+     are read off the skills' own `uses` fields, so adding a skill that
+     needs something new makes it appear here on its own. */
+  var ALWAYS={
+    'Claude Opus 5':'The model behind every agent',
+    'Waldo':'Audience, category and brand research',
+    'Context':'The client profile every skill reads'
+  };
+  var CONN={
+    'Apify':'Social listening and scraping',
+    'Sprout Social':'Publishing, listening and performance',
+    'Google Trends':'Search demand over time',
+    'GWI':'Survey data for sizing an audience',
+    'Brand Intel':'Synthetic panels and brand-guideline checks',
+    'Library':'Our own approved prior work',
+    'Signal pulse':'This client’s validated trends',
+    'Rate card':'Live pricing by discipline',
+    'Adobe Firefly':'Image generation, on brand',
+    'Magnific':'Upscaling and detail',
+    'Higgsfield':'Motion and video generation',
+    'Adobe Express':'Resizing and platform cutdowns',
+    'ElevenLabs':'Voice',
+    'GA4':'Site and conversion analytics',
+    'Meta Ads':'Paid performance and the ad library',
+    'Excel':'Reading and writing client workbooks',
+    'Word':'Long-form response documents',
+    'Sheets':'Grids and matrices',
+    'Slides':'Decks',
+    'Docs':'Scopes and written deliverables',
+    'Acrobat':'PDFs in and out',
+    'Slack':'Channels and notifications',
+    'Drive':'Project folders',
+    'Calendar':'Milestones and availability',
+    'Gmail':'Outreach'
+  };
+  /* things we could wire up but haven't — the list is meant to grow */
+  var OFFER=[
+    {n:'Figma',      d:'Design files and prototypes'},
+    {n:'HubSpot',    d:'Pipeline and client records'},
+    {n:'YouTube',    d:'Channel performance and comments'}
+  ];
+
+  function connUsage(){
+    var u={};
+    CATALOG.forEach(function(s){
+      (s.uses||'').split(',').forEach(function(c){
+        c=c.trim(); if(!c) return;
+        u[c]=(u[c]||0)+1;
+      });
+    });
+    return u;
+  }
+  function drawConn(){
+    var el=document.getElementById('connpage'); if(!el) return;
+    var u=connUsage();
+    function row(name,desc,cls,right){
+      return '<div class="cnx"><span class="dot '+cls+'"></span><b>'+name+'</b>'+
+        '<span class="d">'+desc+'</span><span class="u">'+right+'</span></div>';
+    }
+    var h='';
+
+    h+='<h2 style="font-size:17px;font-weight:600;margin-bottom:4px">Always on</h2>'+
+       '<p class="cnx-note">Running now, for every client and every skill.</p>';
+    Object.keys(ALWAYS).forEach(function(n){
+      h+=row(n,ALWAYS[n],'live', u[n]?'<b>'+u[n]+'</b> skills':'everything');
+    });
+
+    /* Derived from what skills actually call, not from a hand-kept list —
+       otherwise a skill someone adds with a connector we've never heard of
+       would run against something this page swears isn't there. */
+    var offerBy={}; OFFER.forEach(function(o){ offerBy[o.n]=o.d; });
+    var wake=Object.keys(u).filter(function(n){ return !ALWAYS[n]; })
+      .sort(function(a,b){ return u[b]-u[a] || a.localeCompare(b); });
+    h+='<h2 style="font-size:17px;font-weight:600;margin:34px 0 4px">Connected</h2>'+
+       '<p class="cnx-note">Authorised and idle. Each one wakes when a skill that needs it runs.</p>';
+    wake.forEach(function(n){
+      h+=row(n, CONN[n]||offerBy[n]||'Added with a skill', 'idle',
+             '<b>'+u[n]+'</b> skill'+(u[n]>1?'s':''));
+    });
+
+    /* anything on offer that a skill has since claimed has moved up */
+    var left=OFFER.filter(function(o){ return !u[o.n]; });
+    if(left.length){
+      h+='<h2 style="font-size:17px;font-weight:600;margin:34px 0 4px">Available</h2>'+
+         '<p class="cnx-note">Not set up yet. Connecting one makes it selectable when you build a skill.</p>';
+      left.forEach(function(o){
+        h+='<div class="cnx"><span class="dot"></span><b>'+o.n+'</b>'+
+           '<span class="d">'+o.d+'</span><span class="go">Connect</span></div>';
+      });
+    }
+
+    el.innerHTML=h;
+    document.getElementById('sideconn').textContent=Object.keys(ALWAYS).length+wake.length;
+  }
+
+  /* ---------- project sidebar ---------- */
+  function drawProject(){
+    var p=PROJECTS[project];
+    document.getElementById('pj-n').textContent=p.n;
+    document.getElementById('pj-s').textContent=p.s;
+    document.getElementById('pj-threads').innerHTML=p.threads.map(function(t){
+      return '<button class="row'+(t.t===thread?' on':'')+'" data-thread="'+t.t+'">'+
+        '<span class="dot"></span><span class="nm">'+t.n+'</span></button>';
+    }).join('');
+    document.getElementById('pj-files').innerHTML=p.files.map(function(f){
+      return '<button class="row"><svg><use href="#i-file"></use></svg><span class="nm">'+f+'</span></button>';
+    }).join('');
+  }
+
+  /* ---------- state ---------- */
+  function setState(s){
+    state=s;
+    /* Skills doesn't replace where you are, it sits on top of it — so it
+       remembers the scope you came from and leaves that sidebar up. Every
+       other state sets the scope. */
+    if(s==='skills'||s==='conn'){
+      document.body.className='s-'+s+' from-'+scope+(showAll?' allskills':'');
+    }else{
+      scope=s;
+      document.body.className='s-'+s+(showAll?' allskills':'');
+    }
+    /* the composer is scoped to where you ARE, which Skills doesn't change */
+    document.getElementById('scope').textContent =
+      scope==='project' ? PROJECTS[project].n : scope==='home' ? 'No client selected' : 'Amtrak';
+    document.querySelector('.ta').placeholder =
+      scope==='project' ? 'Ask anything, or add a skill'
+      : scope==='home' ? 'Ask anything, or open a client'
+      : 'Ask anything about Amtrak';
+    Array.prototype.forEach.call(document.querySelectorAll('.s-work [data-nav]'),function(r){
+      r.classList.toggle('on', r.getAttribute('data-nav')===s);
+    });
+    /* Open a thread at the TOP, not the bottom. Chat apps drop you at the
+       latest message because you're resuming a conversation you already
+       know. These threads are complete stories read front to back — land
+       someone at the end and they meet the refinement before the ask that
+       caused it, then have to scroll up to understand what they're
+       looking at. The composer is pinned at the bottom regardless. */
+    document.getElementById('scroll').scrollTop = 0;
+    open(false);
+    drawMenu();
+  }
+  function setThread(t){
+    thread=t;
+    Array.prototype.forEach.call(document.querySelectorAll('.thread'),function(el){
+      el.classList.toggle('on', el.getAttribute('data-t')===t);
+    });
+    drawProject();
+    document.getElementById('scroll').scrollTop=0;
+  }
+  function openProject(id){
+    project=id; thread=PROJECTS[id].threads[0].t;
+    setState('project'); setThread(thread);
+  }
+
+  /* ---------- menu open/close ---------- */
+  var menu=document.getElementById('menu'), skbtn=document.getElementById('skbtn');
+  function open(v){
+    menu.classList.toggle('open',v);
+    skbtn.classList.toggle('open',v);
+    skbtn.setAttribute('aria-expanded',v?'true':'false');
+    if(v) document.getElementById('q').focus();
+  }
+  skbtn.addEventListener('click',function(e){ e.stopPropagation(); open(!menu.classList.contains('open')); });
+  document.addEventListener('click',function(){ open(false); });
+
+  menu.addEventListener('click',function(e){
+    e.stopPropagation();
+    var rec=e.target.closest('[data-recipe]');
+    if(rec){
+      rec.getAttribute('data-recipe').split(',').forEach(function(k){
+        if(BY[k]&&armed.indexOf(k)<0) armed.push(k);
+      });
+      drawArmed(); drawMenu(); return;
+    }
+    var row=e.target.closest('[data-sk]');
+    if(row){
+      var k=row.getAttribute('data-sk'), s=BY[k];
+      if(s.mode==='watch'){
+        var j=watching.indexOf(k);
+        if(j>-1) watching.splice(j,1); else watching.push(k);
+      }else{
+        var i=armed.indexOf(k);
+        if(i>-1) armed.splice(i,1); else armed.push(k);
+        drawArmed();
+      }
+      drawMenu();
+    }
+  });
+  document.getElementById('mall').addEventListener('click',function(e){
+    e.stopPropagation(); showAll=!showAll; drawMenu();
+  });
+  /* re-render rather than re-filter, so the search can cross out of the
+     Ready-now cut and into the rest of the catalogue */
+  document.getElementById('q').addEventListener('input',drawMenu);
+
+  document.getElementById('armed').addEventListener('click',function(e){
+    var x=e.target.closest('[data-off]');
+    if(x){ e.stopPropagation(); armed.splice(armed.indexOf(x.getAttribute('data-off')),1); drawArmed(); drawMenu(); }
+  });
+
+  /* "/" from an empty box opens the menu, the way a slash command would */
+  var ta=document.querySelector('.ta');
+  ta.addEventListener('keydown',function(e){
+    if(e.key==='/'&&!ta.value){ e.preventDefault(); open(true); }
+    if(e.key==='Escape') open(false);
+  });
+  ta.addEventListener('input',function(){
+    ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,200)+'px';
+  });
+
+  /* ---------- navigation. All real: no mock switcher. ---------- */
+  document.addEventListener('click',function(e){
+    var el=e.target.closest('[data-client],[data-open],[data-go],[data-nav],[data-thread],[data-arm],[data-newskill]');
+    /* closest() walks all the way to <body>, so a stray data-* attribute on
+       an ancestor turns every click on the page into a navigation. Only
+       honour real controls. */
+    if(!el||el===document.body||el===document.documentElement) return;
+    if(el.tagName==='A') e.preventDefault();
+    if(el.hasAttribute('data-newskill')){ sheetOpen(true); return; }
+    if(el.hasAttribute('data-client')) setState('client');
+    else if(el.hasAttribute('data-open')) openProject(el.getAttribute('data-open'));
+    else if(el.hasAttribute('data-go')) setState(el.getAttribute('data-go'));
+    else if(el.hasAttribute('data-nav')) setState(el.getAttribute('data-nav'));
+    else if(el.hasAttribute('data-thread')) setThread(el.getAttribute('data-thread'));
+    else if(el.hasAttribute('data-arm')){
+      /* a suggestion arms the skill and hands you back the box — it is a
+         shortcut, never a command */
+      el.getAttribute('data-arm').split(',').forEach(function(k){
+        if(BY[k]&&armed.indexOf(k)<0) armed.push(k);
+      });
+      drawArmed(); drawMenu(); ta.focus();
+    }
+  });
+
+  /* ============================================================
+     NEW SKILL
+     The catalogue is the product's claim to grow, so adding to it has to
+     work in the demo — not open a form that goes nowhere. A skill added
+     here really is pushed into CATALOG: the Skills page gains a card, the
+     counts move, and it is callable from the chat box a second later.
+     That last part is the whole demonstration.
+     ============================================================ */
+  var sheet=document.getElementById('sheet');
+  function sheetOpen(v){
+    sheet.hidden=!v;
+    if(v){
+      /* re-opening after an add should start clean */
+      document.getElementById('drafted').hidden=true;
+      document.getElementById('addskill').disabled=true;
+      setTimeout(function(){ document.getElementById('dta').focus(); },30);
+    }
+  }
+  sheet.addEventListener('click',function(e){
+    if(e.target.closest('[data-close]')) sheetOpen(false);
+    var tab=e.target.closest('[data-tab]');
+    if(tab){
+      var p=tab.getAttribute('data-tab');
+      Array.prototype.forEach.call(sheet.querySelectorAll('.tab'),function(t){
+        t.classList.toggle('on',t===tab);
+      });
+      Array.prototype.forEach.call(sheet.querySelectorAll('.tabp'),function(x){
+        x.classList.toggle('on',x.getAttribute('data-p')===p);
+      });
+    }
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'&&!sheet.hidden) sheetOpen(false);
+  });
+
+  /* Mock: the draft is canned, so the textarea ships with the sentence it
+     corresponds to rather than a placeholder — the demo stays honest about
+     what produced what. */
+  document.getElementById('draftbtn').addEventListener('click',function(){
+    document.getElementById('drafted').hidden=false;
+    document.getElementById('addskill').disabled=false;
+    document.getElementById('drafted').scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+
+  var PH={Mission:'mission',Make:'make',Moments:'moments',Multiply:'multiply',Operations:'ops'};
+  document.getElementById('addskill').addEventListener('click',function(){
+    function val(id){ return (document.getElementById(id).value||'').trim(); }
+    var name=val('d-n'); if(!name) return;
+    var need=val('d-need');
+    var k='mine-'+name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+    var s={k:k, n:name, p:PH[val('d-ph')]||'ops', g:'s-shield',
+           d:val('d-d'), needs:need?[need]:[], gives:val('d-give')||'Output',
+           who:val('d-who')||'Review', uses:val('d-uses')||'Context', mine:1};
+    CATALOG.push(s); BY[k]=s;
+
+    sheetOpen(false);
+    setState('skills');
+    drawSkillsPage(); drawConn(); drawMenu(); counts();
+
+    /* land on it, and let it announce itself once */
+    var card=document.querySelector('.scard[data-k="'+k+'"]');
+    if(card){
+      card.classList.add('fresh');
+      document.getElementById('scroll').scrollTop=card.offsetTop-120;
+    }
+  });
+
+  function counts(){
+    document.getElementById('skcount').textContent=CATALOG.length;
+    document.getElementById('sidect').textContent=CATALOG.length;
+  }
+
+  document.getElementById('theme').addEventListener('click',function(){
+    var r=document.documentElement, next=r.getAttribute('data-theme')==='dark'?'light':'dark';
+    r.setAttribute('data-theme',next);
+    try{localStorage.setItem('mekos-theme',next);}catch(e){}
+  });
+
+  drawSkillsPage();
+  drawConn();
+  drawProject();
+  drawArmed();
+  setState('home');
+</script>
+</body>
+</html>

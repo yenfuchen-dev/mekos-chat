@@ -92,11 +92,17 @@
 
     .s-work{border-top:1px solid var(--line);padding:7px 10px}
 
-    .s-top{padding:18px 16px 12px;display:grid;gap:12px}
+    .s-brand{padding:18px 16px 2px}
+    .s-brand button{display:block;text-align:left;border-radius:var(--radius);
+      opacity:1;transition:opacity .16s}
+    .s-brand button:hover{opacity:.65}
+    .s-top{padding:10px 16px 12px;display:grid;gap:12px}
     .logo{display:block;width:auto;height:23px;color:var(--fg)}
     .s-scroll{flex:1;overflow-y:auto;padding:0 10px 16px;min-height:0}
 
-    .newbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    /* its own breathing room, so it separates from the logo / client name
+       above it rather than reading as part of the same stack */
+    .newbtn{margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
       padding:10px 14px;border-radius:var(--radius-lg);background:var(--accent);
       color:var(--accent-fg);font-size:14px;font-weight:600;transition:filter .18s var(--ease)}
     .newbtn:hover{filter:brightness(1.07)}
@@ -664,17 +670,21 @@
   <!-- ===================== SIDEBAR ===================== -->
   <aside class="side">
 
+    <!-- Brand sits outside the mode panels, so it survives going into a
+         client and then into a project. It's also the way home — the only
+         anchor that never moves. Stays in-file rather than linking out, so
+         this still works unzipped on a desktop with nothing to 404 into. -->
+    <div class="s-brand">
+      <button data-go="home" aria-label="MekOS, home"><svg class="logo" viewBox="0 0 136.75 32.5"><use href="#mek"></use></svg></button>
+    </div>
+
     <!-- ---- home: clients ---- -->
     <div class="mode m-home">
       <div class="s-top">
-        <!-- stays inside the file so this works unzipped on a desktop,
-             with no server and no sibling pages to 404 into -->
-        <button data-go="home" aria-label="MekOS" style="display:block;text-align:left"><svg class="logo" viewBox="0 0 136.75 32.5"><use href="#mek"></use></svg></button>
         <button class="newbtn"><svg><use href="#i-plus"></use></svg>New client</button>
       </div>
       <div class="s-scroll">
-        <button class="row"><svg><use href="#i-find"></use></svg><span class="nm">Search</span></button>
-        <div class="lbl">Clients</div>
+        <div class="lbl" style="padding-top:10px">Clients</div>
         <button class="row" data-client><img src="assets/clients/amtrak.png" alt="" onerror="this.style.display='none'"><span class="nm">Amtrak</span><span class="ct">2</span></button>
         <button class="row"><img src="assets/clients/delonghi.png" alt="" onerror="this.style.display='none'"><span class="nm">De'Longhi</span><span class="ct">2</span></button>
         <button class="row"><img src="assets/clients/built.png" alt="" onerror="this.style.display='none'"><span class="nm">Built Bar</span><span class="ct">2</span></button>
